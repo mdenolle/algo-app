@@ -1,0 +1,12 @@
+{
+  "name": "Algo — Build Something Amazing",
+  "short_name": "Algo",
+  "description": "Turn the building bricks you own into something amazing.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7fbff",
+  "theme_color": "#0877e8",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

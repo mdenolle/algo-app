@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0877e8" />
+    <meta
+      name="description"
+      content="Algo turns the building bricks you own into something amazing."
+    />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Algo — Build Something Amazing</title>
+  </head>
+  <body>
+    <div class="city city-back" aria-hidden="true"></div>
+    <div class="app-shell">
+      <header class="topbar">
+        <button class="brand" data-go="home" aria-label="Go home">
+          <span class="brand-brick"><i></i><i></i></span>
+          <span>ALGO</span>
+        </button>
+        <button id="sound-toggle" class="icon-button" aria-label="Turn voice off" title="Voice on">
+          <span aria-hidden="true">🔊</span>
+        </button>
+      </header>
+
+      <main>
+        <section id="home" class="screen active" aria-labelledby="home-title">
+          <div class="hero-card brick-card">
+            <div class="studs" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <div class="mascot-wrap" aria-label="Algo, the friendly AI building guide">
+              <div class="mascot" aria-hidden="true">
+                <div class="hair"></div>
+                <div class="head">
+                  <span class="eye left"></span><span class="eye right"></span>
+                  <span class="smile"></span>
+                </div>
+                <div class="body"><span class="shirt-logo">SL</span></div>
+                <div class="arm arm-left"></div><div class="arm arm-right waving"></div>
+                <div class="leg leg-left"></div><div class="leg leg-right"></div>
+              </div>
+              <span class="spark spark-one">✦</span><span class="spark spark-two">✦</span>
+            </div>
+            <div class="hero-copy">
+              <p class="eyebrow">YOUR FRIENDLY AI GUIDE</p>
+              <h1 id="home-title">Hi! I’m Algo.</h1>
+              <p>Show me your pieces, and let’s build something amazing!</p>
+              <button class="primary-button big" data-go="scan">
+                <span aria-hidden="true">📸</span> Scan my pieces
+              </button>
+            </div>
+          </div>
+
+          <div class="joke-card">
+            <span class="joke-badge">French fun</span>
+            <p>“Pourquoi les briques sont-elles heureuses?”</p>
+            <button id="joke-answer" class="text-button">Tell me, Algo!</button>
+            <p id="joke-reveal" class="joke-reveal" hidden>
+              Parce qu’elles s’emboîtent bien! <span>They fit together well!</span>
+            </p>
+          </div>
+
+          <button class="demo-link" id="demo-inventory">No photo yet? Try Alex’s demo pieces →</button>
+        </section>
+
+        <section id="scan" class="screen" aria-labelledby="scan-title">
+          <button class="back-button" data-go="home">← Back</button>
+          <div class="section-heading">
+            <p class="step-label">STEP 1</p>
+            <h2 id="scan-title">Spread out your pieces</h2>
+            <p>Put them in good light so Algo can see every shape and color.</p>
+          </div>
+
+          <label class="camera-card" for="piece-photo">
+            <input id="piece-photo" type="file" accept="image/*" capture="environment" />
+            <img id="photo-preview" alt="Your selected building pieces" hidden />
+            <span id="camera-prompt">
+              <span class="camera-icon" aria-hidden="true">📷</span>
+              <strong>Take a picture</strong>
+              <small>or choose one from your photos</small>
+            </span>
+          </label>
+          <p class="privacy-note">🔒 Your photo stays private in this prototype.</p>
+          <button id="scan-button" class="primary-button big full" disabled>Find my pieces</button>
+          <button id="scan-demo" class="secondary-button full">Use demo photo</button>
+
+          <div id="scan-progress" class="scan-progress" hidden>
+            <div class="scan-beam"></div>
+            <div class="thinking-dots"><i></i><i></i><i></i></div>
+            <strong>Algo is looking for pieces…</strong>
+            <span id="scan-status">Finding colors</span>
+          </div>
+        </section>
+
+        <section id="ideas" class="screen" aria-labelledby="ideas-title">
+          <div class="ideas-header">
+            <button class="back-button" data-go="scan">← Scan again</button>
+            <span class="piece-total"><strong id="piece-total">34</strong> pieces found</span>
+          </div>
+          <div class="section-heading compact">
+            <p class="step-label">STEP 2</p>
+            <h2 id="ideas-title">Pick your adventure!</h2>
+            <p>Every idea uses only pieces you have.</p>
+          </div>
+
+          <div class="inventory-strip" aria-label="Your piece inventory">
+            <button class="inventory-pill blue" title="Blue 2 × 4 bricks"><span class="mini-brick shape-brick"></span><b>6</b></button>
+            <button class="inventory-pill red" title="Red 2 × 2 bricks"><span class="mini-brick shape-short"></span><b>8</b></button>
+            <button class="inventory-pill yellow" title="Yellow thin plates"><span class="mini-brick shape-plate"></span><b>6</b></button>
+            <button class="inventory-pill green" title="Green slopes"><span class="mini-brick shape-slope"></span><b>4</b></button>
+            <button class="inventory-pill white" title="White curved pieces"><span class="mini-brick shape-curve"></span><b>3</b></button>
+            <button class="inventory-pill black" title="Black wheels"><span class="mini-brick shape-wheel"></span><b>4</b></button>
+            <button class="inventory-pill gray" title="Gray axles"><span class="mini-brick shape-axle"></span><b>3</b></button>
+          </div>
+
+          <div class="design-grid">
+            <button class="design-card" data-build="rocket">
+              <span class="difficulty easy">QUICK BUILD</span>
+              <span class="build-art card-model rocket-model" aria-label="Finished Pocket Rocket">
+                <i class="toy-brick blue b-base"></i><i class="toy-brick red b-mid"></i><i class="toy-brick yellow b-wide"></i><i class="toy-brick white b-top"></i>
+              </span>
+              <span class="design-copy"><strong>Pocket Rocket</strong><small>12 pieces · 5 min</small></span>
+              <span class="arrow">→</span>
+            </button>
+            <button class="design-card" data-build="creature">
+              <span class="difficulty creative">CREATIVE BUILD</span>
+              <span class="build-art card-model dragon-model" aria-label="Finished Tiny Brick Dragon">
+                <i class="toy-brick green b-base"></i><i class="toy-brick blue b-mid"></i><i class="toy-brick yellow b-wide"></i><i class="toy-brick red b-top"></i>
+              </span>
+              <span class="design-copy"><strong>Tiny Brick Dragon</strong><small>23 pieces · 12 min</small></span>
+              <span class="arrow">→</span>
+            </button>
+            <button class="design-card" data-build="city">
+              <span class="difficulty mega">MEGA BUILD</span>
+              <span class="build-art card-model city-model" aria-label="Finished Skyline City">
+                <i class="toy-brick blue b-base"></i><i class="toy-brick red tower-left"></i><i class="toy-brick green tower-right"></i><i class="toy-brick yellow b-top"></i>
+              </span>
+              <span class="design-copy"><strong>Skyline City</strong><small>34 pieces · 20 min</small></span>
+              <span class="arrow">→</span>
+            </button>
+            <button class="creator-card" data-go="creator">
+              <span class="plus-block">+</span>
+              <span><strong>Create My Own</strong><small>Invent anything you imagine</small></span>
+            </button>
+          </div>
+          <button id="new-ideas" class="secondary-button full">↻ Make three new designs</button>
+        </section>
+
+        <section id="preview" class="screen preview-screen" aria-labelledby="preview-title">
+          <button class="back-button" data-go="ideas">← All ideas</button>
+          <div class="section-heading compact">
+            <p id="preview-level" class="step-label">FINAL CREATION</p>
+            <h2 id="preview-title">Pocket Rocket</h2>
+            <p>This is what you’ll build with the pieces Algo found.</p>
+          </div>
+          <div class="final-preview-card">
+            <span class="finished-badge">FINISHED MODEL</span>
+            <div id="final-model" class="final-model" aria-label="Completed creation preview"></div>
+            <p class="look-around">↔ Drag to look around</p>
+          </div>
+          <div class="ready-card">
+            <span class="ready-check">✓</span>
+            <span><strong>You have every piece!</strong><small id="preview-details">12 pieces · about 5 minutes</small></span>
+          </div>
+          <button id="start-building" class="primary-button big full">Build it step by step →</button>
+          <button class="secondary-button full" data-go="ideas">Choose a different design</button>
+        </section>
+
+        <section id="builder" class="screen builder-screen" aria-labelledby="builder-title">
+          <div class="builder-toolbar">
+            <button class="back-button" data-go="ideas">← Ideas</button>
+            <div class="step-count">Step <strong id="current-step">1</strong> of <strong id="total-steps">4</strong></div>
+          </div>
+          <h2 id="builder-title">Pocket Rocket</h2>
+
+          <div class="builder-top">
+            <div class="panel-label"><span>Your pieces</span><b id="remaining-count">12 left</b></div>
+            <div id="needed-pieces" class="needed-pieces"></div>
+          </div>
+
+          <div class="builder-bottom">
+            <div class="panel-label"><span>Build step</span><button id="hint-button" class="hint-button">💡 Hint</button></div>
+            <div class="build-stage">
+              <div id="model-display" class="model-display" aria-label="Current build illustration"></div>
+              <div class="rotate-note">↔ Swipe to look around</div>
+            </div>
+            <p id="step-instruction" class="instruction">Start with one blue 2 × 4 brick.</p>
+            <p id="hint-text" class="hint-text" hidden></p>
+            <div class="build-actions">
+              <button id="previous-step" class="secondary-button" disabled>← Back</button>
+              <button id="next-step" class="primary-button">Piece added ✓</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="creator" class="screen creator-screen" aria-labelledby="creator-title">
+          <div class="builder-toolbar">
+            <button class="back-button" data-go="ideas">← Ideas</button>
+            <button id="clear-creation" class="text-button">Clear</button>
+          </div>
+          <div class="section-heading compact">
+            <p class="step-label">CREATOR MODE</p>
+            <h2 id="creator-title">Build your own!</h2>
+            <p>Choose a piece, then tap the board to place it.</p>
+          </div>
+
+          <div class="creator-top">
+            <div class="panel-label"><span>Your pieces</span><b><span id="creator-left">34</span> left</b></div>
+            <div id="creator-palette" class="creator-palette">
+              <button class="palette-piece selected" data-color="blue" data-shape="brick" aria-label="Blue 2 by 4 brick"><span class="mini-brick shape-brick"></span><b>6</b></button>
+              <button class="palette-piece" data-color="red" data-shape="short" aria-label="Red 2 by 2 brick"><span class="mini-brick shape-short"></span><b>8</b></button>
+              <button class="palette-piece" data-color="yellow" data-shape="plate" aria-label="Yellow thin plate"><span class="mini-brick shape-plate"></span><b>6</b></button>
+              <button class="palette-piece" data-color="green" data-shape="slope" aria-label="Green slope"><span class="mini-brick shape-slope"></span><b>4</b></button>
+              <button class="palette-piece white-piece" data-color="white" data-shape="curve" aria-label="White curved piece"><span class="mini-brick shape-curve"></span><b>3</b></button>
+              <button class="palette-piece" data-color="black" data-shape="wheel" aria-label="Black wheel"><span class="mini-brick shape-wheel"></span><b>4</b></button>
+              <button class="palette-piece" data-color="gray" data-shape="axle" aria-label="Gray axle"><span class="mini-brick shape-axle"></span><b>3</b></button>
+            </div>
+          </div>
+
+          <div class="creator-bottom">
+            <div class="panel-label"><span>Your creation</span><button id="algo-hint" class="hint-button">Ask Algo</button></div>
+            <div id="build-board" class="build-board" aria-label="Tap squares to place pieces"></div>
+            <p id="creator-message" class="creator-message">Algo says: “I can’t wait to see what you invent!”</p>
+            <button id="finish-creation" class="primary-button full" disabled>Finish my creation</button>
+          </div>
+        </section>
+
+        <section id="complete" class="screen complete-screen" aria-labelledby="complete-title">
+          <div class="confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="checkmark">✓</div>
+          <p class="step-label">MAGNIFIQUE!</p>
+          <h2 id="complete-title">You built it!</h2>
+          <p>Give your amazing creation a name.</p>
+          <label class="name-field">
+            <span>Creation name</span>
+            <input id="creation-name" value="Alex’s Pocket Rocket" maxlength="40" />
+          </label>
+          <div class="book-preview">
+            <div class="book-spine"></div>
+            <div class="book-cover">
+              <span>MY BUILD BOOK</span>
+              <strong id="book-title">Alex’s Pocket Rocket</strong>
+              <div class="cover-art">🚀</div>
+              <small>Designed with Algo</small>
+            </div>
+          </div>
+          <button id="make-book" class="primary-button big full">📖 Make my instruction book</button>
+          <button class="secondary-button full" data-go="ideas">Build something else</button>
+          <p class="adult-note">A grown-up will help with printing, payment, and delivery.</p>
+        </section>
+
+        <section id="book" class="screen book-screen" aria-labelledby="book-screen-title">
+          <div class="builder-toolbar">
+            <button class="back-button" data-go="complete">← Finished build</button>
+            <span class="piece-total">BOOK PREVIEW</span>
+          </div>
+          <div class="section-heading compact">
+            <p class="step-label">MADE BY YOU</p>
+            <h2 id="book-screen-title">My instruction book</h2>
+            <p>Turn the pages to see your whole build story.</p>
+          </div>
+          <div class="book-viewer">
+            <div id="book-page" class="book-page"></div>
+          </div>
+          <p id="book-page-count" class="book-page-count">Page 1 of 6</p>
+          <div class="book-nav">
+            <button id="previous-book-page" class="secondary-button">← Previous</button>
+            <button id="next-book-page" class="primary-button">Next page →</button>
+          </div>
+          <button id="print-book" class="secondary-button full">🖨️ Print with a grown-up</button>
+        </section>
+      </main>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Algo",
+    "slug": "algo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/algo-icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.alex.algo",
+      "adaptiveIcon": {
+        "backgroundColor": "#0877E8",
+        "foregroundImage": "./assets/algo-foreground.png",
+        "monochromeImage": "./assets/algo-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Algo to photograph your building pieces.",
+          "photosPermission": "Allow Algo to choose a photo of your building pieces.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
