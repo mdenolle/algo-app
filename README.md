@@ -35,6 +35,15 @@ npm run catalog:build   # refresh from Rebrickable
 npm test                # catalog invariants
 ```
 
+## Algo World (round LEGO planet)
+
+`world/` is a browser prototype of the LEGO survival world: a spherical planet with
+streamed chunks, procedural plains/ice/ocean terrain and instanced LEGO bricks,
+walked in third person. `npm install` once at the repo root (three.js), then
+`npm run web` and open `http://localhost:8000/world/`. On a phone on the same Wi-Fi,
+open the same path at this computer's IP; touch controls appear. See
+[world/README.md](world/README.md) for the architecture and what comes next.
+
 ## Browser prototype
 
 From this folder, run:

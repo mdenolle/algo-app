@@ -148,6 +148,7 @@ p { line-height: 1.45; }
 .joke-reveal { color: var(--green); }
 .joke-reveal span { display: block; color: var(--muted); font-size: 13px; }
 .demo-link { display: block; margin: 11px auto 0; }
+.world-link { width: fit-content; text-decoration: none; text-align: center; }
 
 .section-heading { margin: 12px 4px 23px; text-align: center; }
 .section-heading .step-label { color: var(--blue); }
