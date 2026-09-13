@@ -11,7 +11,7 @@ export class CameraController {
     this.camera = camera;
     this.player = player;
     this.yaw = 0;
-    this.pitch = 0.26;
+    this.pitch = 0.5;
     this.distance = 12;
     this.minDistance = 3;
     this.maxDistance = 20;

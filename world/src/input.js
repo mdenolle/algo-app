@@ -3,17 +3,27 @@
 // jump button. poll() returns a snapshot and clears the per-frame deltas.
 
 export class Input {
-  constructor(canvas, { joystick, knob, jumpButton }) {
+  constructor(canvas, { joystick, knob, jumpButton, digButton, buildButton, eatButton }) {
     this.keys = new Set();
     this.orbit = { dx: 0, dy: 0 };
     this.zoom = 0;
+    this.actions = [];      // 'dig' | 'build' | 'eat' | { select: n }, consumed each frame
+    this.press = null;      // pointer press being judged as a tap/click
     this.joy = { active: false, id: null, x: 0, y: 0 };
     this.jumpHeld = false;
     this.jumpButtonHeld = false;
     this.pointers = new Map();
     this.pinchDistance = null;
 
-    window.addEventListener('keydown', e => { this.keys.add(e.code); if (e.code === 'Space') e.preventDefault(); });
+    window.addEventListener('keydown', e => {
+      if (e.repeat) return;
+      this.keys.add(e.code);
+      if (e.code === 'Space') e.preventDefault();
+      if (e.code === 'KeyF') this.actions.push('eat');
+      if (e.code === 'KeyE') this.actions.push('dig');
+      if (e.code === 'KeyR') this.actions.push('build');
+      if (/^Digit[1-9]$/.test(e.code)) this.actions.push({ select: Number(e.code[5]) - 1 });
+    });
     window.addEventListener('keyup', e => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
 
@@ -21,6 +31,7 @@ export class Input {
     canvas.addEventListener('pointerdown', e => {
       canvas.setPointerCapture(e.pointerId);
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.pointers.size === 1) this.press = { id: e.pointerId, x: e.clientX, y: e.clientY, time: performance.now(), button: e.button, touch: e.pointerType === 'touch', moved: false };
     });
     canvas.addEventListener('pointermove', e => {
       const p = this.pointers.get(e.pointerId);
@@ -35,8 +46,23 @@ export class Input {
         this.orbit.dy += e.clientY - p.y;
       }
       p.x = e.clientX; p.y = e.clientY;
+      if (this.press && e.pointerId === this.press.id && Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y) > 8) this.press.moved = true;
     });
-    const release = e => { this.pointers.delete(e.pointerId); if (this.pointers.size < 2) this.pinchDistance = null; };
+    // A press that did not turn into a drag is a click: left digs, right builds;
+    // on touch a quick tap digs and a long press builds.
+    const release = e => {
+      this.pointers.delete(e.pointerId);
+      if (this.pointers.size < 2) this.pinchDistance = null;
+      const press = this.press;
+      if (press && e.pointerId === press.id) {
+        this.press = null;
+        const held = performance.now() - press.time;
+        if (!press.moved && e.type === 'pointerup') {
+          if (press.touch) this.actions.push(held > 450 ? 'build' : 'dig');
+          else this.actions.push(press.button === 2 ? 'build' : 'dig');
+        }
+      }
+    };
     canvas.addEventListener('pointerup', release);
     canvas.addEventListener('pointercancel', release);
     canvas.addEventListener('wheel', e => { this.zoom += e.deltaY; e.preventDefault(); }, { passive: false });
@@ -61,6 +87,9 @@ export class Input {
     joystick.addEventListener('pointerup', joyEnd);
     joystick.addEventListener('pointercancel', joyEnd);
 
+    const tap = (button, action) => button.addEventListener('pointerdown', e => { e.preventDefault(); this.actions.push(action); });
+    tap(digButton, 'dig'); tap(buildButton, 'build'); tap(eatButton, 'eat');
+
     jumpButton.addEventListener('pointerdown', e => { e.preventDefault(); this.jumpButtonHeld = true; });
     const jumpEnd = () => { this.jumpButtonHeld = false; };
     jumpButton.addEventListener('pointerup', jumpEnd);
@@ -79,8 +108,9 @@ export class Input {
       run: k.has('ShiftLeft') || k.has('ShiftRight'),
       orbit: { dx: this.orbit.dx, dy: this.orbit.dy },
       zoom: this.zoom,
+      actions: this.actions,
     };
-    this.orbit.dx = 0; this.orbit.dy = 0; this.zoom = 0;
+    this.orbit.dx = 0; this.orbit.dy = 0; this.zoom = 0; this.actions = [];
     return snapshot;
   }
 }

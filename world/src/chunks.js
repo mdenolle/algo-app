@@ -3,21 +3,19 @@
 // renderer, and unloads chunks that drift out of range (with one chunk of
 // hysteresis so walking along a boundary does not thrash).
 
-import { chunksAround } from './planet.js';
+import { chunksAround, parseChunkKey } from './planet.js';
 
 export class ChunkManager {
-  constructor(config, { onChunkReady, onChunkRemove }) {
+  constructor(config, { onChunkReady, onChunkRemove, getEdits }) {
     this.config = config;
     this.onChunkReady = onChunkReady;
     this.onChunkRemove = onChunkRemove;
+    this.getEdits = getEdits ?? (() => ({ edits: [], picked: [] }));
     this.loaded = new Map();      // key -> { face, cx, cy, heights }
     this.pending = new Map();     // key -> entry queued or in flight
     this.queue = [];              // entries waiting for a worker
     this.inFlight = new Map();    // key -> worker
     this.keep = new Set();
-    // Extension point for the building system: per-chunk block edits, kept across
-    // unload/reload and sent with every build request. Persistence saves this map.
-    this.edits = new Map();
     this.buildMs = { count: 0, total: 0, max: 0 };
     this.workers = Array.from({ length: config.workerCount }, () => {
       const worker = new Worker(new URL('./chunk-worker.js', import.meta.url), { type: 'module' });
@@ -40,7 +38,7 @@ export class ChunkManager {
       this.pending.set(key, queued);
       this.queue.push(queued);
     }
-    for (const entry of this.queue) entry.distance = desired.get(entry.key)?.distance ?? keep.get(entry.key)?.distance ?? Infinity;
+    for (const entry of this.queue) if (entry.distance >= 0) entry.distance = desired.get(entry.key)?.distance ?? keep.get(entry.key)?.distance ?? Infinity;
     this.queue = this.queue.filter(entry => {
       if (this.keep.has(entry.key)) return true;
       this.pending.delete(entry.key);
@@ -54,6 +52,20 @@ export class ChunkManager {
     this.#dispatch();
   }
 
+  /** Re-generate chunks after an edit; they jump the queue. Unloaded chunks are ignored. */
+  rebuild(keys) {
+    for (const key of keys) {
+      if (!this.loaded.has(key) && !this.keep.has(key)) continue;
+      if (this.inFlight.has(key)) { this.pending.get(key).stale = true; continue; }
+      if (this.pending.has(key)) continue;
+      const { face, cx, cy } = parseChunkKey(key);
+      const entry = { key, face, cx, cy, distance: -1 };
+      this.pending.set(key, entry);
+      this.queue.push(entry);
+    }
+    this.#dispatch();
+  }
+
   #dispatch() {
     if (!this.queue.length) return;
     this.queue.sort((a, b) => a.distance - b.distance);
@@ -63,14 +75,17 @@ export class ChunkManager {
       if (!entry) break;
       worker.busy = true;
       this.inFlight.set(entry.key, worker);
-      worker.postMessage({ type: 'build', key: entry.key, face: entry.face, cx: entry.cx, cy: entry.cy, config: this.config, edits: this.edits.get(entry.key) ?? null });
+      const { edits, picked } = this.getEdits(entry.face, entry.cx, entry.cy);
+      worker.postMessage({ type: 'build', key: entry.key, face: entry.face, cx: entry.cx, cy: entry.cy, config: this.config, edits, picked });
     }
   }
 
   #onResult(worker, data) {
     worker.busy = false;
     this.inFlight.delete(data.key);
+    const entry = this.pending.get(data.key);
     this.pending.delete(data.key);
+    if (entry?.stale) this.rebuild([data.key]);   // edited while building: go again
     this.buildMs.count += 1; this.buildMs.total += data.buildMs; this.buildMs.max = Math.max(this.buildMs.max, data.buildMs);
     if (this.keep.has(data.key)) {
       this.loaded.set(data.key, { face: data.face, cx: data.cx, cy: data.cy, heights: data.heights });

@@ -6,8 +6,8 @@
     "catalog:build": "node catalog/build-catalog.mjs",
     "catalog:build:offline": "node catalog/build-catalog.mjs --offline",
     "test": "node --test catalog/*.test.mjs world/test/*.test.mjs",
-    "web": "python3 -m http.server 8000",
-    "world": "python3 -m http.server 8000"
+    "web": "node serve.mjs",
+    "world": "node serve.mjs"
   },
   "devDependencies": {
     "three": "^0.186.0"

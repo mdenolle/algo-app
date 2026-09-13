@@ -37,25 +37,26 @@ npm test                # catalog invariants
 
 ## Algo World (round LEGO planet)
 
-`world/` is a browser prototype of the LEGO survival world: a spherical planet with
-streamed chunks, procedural plains/ice/ocean terrain and instanced LEGO bricks,
-walked in third person. `npm install` once at the repo root (three.js), then
+`world/` is the LEGO survival game: a spherical planet with streamed chunks,
+procedural plains/ice/ocean terrain and instanced LEGO bricks, walked in third
+person. You dig and build with a hotbar, you have one life, water drowns you,
+you must eat apples, and the planet is saved in the browser. `npm install` once at the repo root (three.js), then
 `npm run web` and open `http://localhost:8000/world/`. In the Android app, tap
 **Explore Algo World** on the home screen: it opens the same page from the laptop's
 server in a WebView (Expo finds the laptop's IP by itself), with touch controls.
 See [world/README.md](world/README.md) for the architecture and what comes next.
 
-If the phone shows "Algo World is not reachable" while the laptop server is running,
-the macOS firewall is blocking the Python that serves it: either click **Allow** in
-the dialog macOS shows the first time, or run the server with the system Python,
-`/usr/bin/python3 -m http.server 8000`, which is already allowed.
+`npm run web` runs `serve.mjs`, a small Node server that sends no-cache headers so
+the phone and the laptop always get the current files. If the phone shows "Algo
+World is not reachable" while it is running, click **Allow** in the macOS firewall
+dialog for `node`.
 
 ## Browser prototype
 
 From this folder, run:
 
 ```sh
-python3 -m http.server 8000
+npm run web
 ```
 
 Then open `http://localhost:8000` in a browser. Use the browser's mobile/device preview to see the phone layout.

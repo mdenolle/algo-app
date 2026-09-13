@@ -8,14 +8,52 @@
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #8fd0ff; font-family: 'Nunito', system-ui, sans-serif; color: #14233a; }
     #world { display: block; width: 100vw; height: 100vh; touch-action: none; }
-    #hud { position: fixed; top: 10px; left: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.72); font: 600 11px/1.5 ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; }
+    button { font-family: inherit; }
+    #hud { position: fixed; top: 10px; left: 10px; padding: 6px 9px; border-radius: 10px; background: rgba(255,255,255,.6); font: 600 10px/1.5 ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; opacity: .85; }
     #title { position: fixed; top: 10px; right: 10px; padding: 6px 12px; border-radius: 12px; background: rgba(255,255,255,.8); font-weight: 900; font-size: 13px; text-decoration: none; color: #0754a6; }
-    #help { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: 10px; background: rgba(255,255,255,.7); font-size: 12px; font-weight: 700; pointer-events: none; white-space: nowrap; }
+    #clock { position: fixed; top: 44px; right: 10px; padding: 4px 10px; border-radius: 10px; background: rgba(255,255,255,.7); font: 800 12px ui-monospace, Menlo, monospace; }
+    #crosshair { position: fixed; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; pointer-events: none; }
+    #crosshair:before, #crosshair:after { content: ''; position: absolute; background: rgba(255,255,255,.9); box-shadow: 0 0 2px rgba(0,0,0,.6); }
+    #crosshair:before { left: 8px; top: 0; width: 2px; height: 18px; }
+    #crosshair:after { top: 8px; left: 0; width: 18px; height: 2px; }
+    #vitals { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+    #hearts { font-size: 15px; letter-spacing: 1px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+    .meter { display: flex; align-items: center; gap: 6px; }
+    .meter .icon { font-size: 14px; }
+    .bar { width: 160px; height: 10px; border-radius: 6px; background: rgba(0,0,0,.35); overflow: hidden; border: 1px solid rgba(255,255,255,.6); }
+    .bar > div { height: 100%; width: 100%; background: #ffd524; transition: width .3s; }
+    .bar > div.low { background: #ec3d3d; }
+    #air-fill { background: #9fc3e9; }
+    #messages { position: fixed; left: 50%; top: 58%; transform: translateX(-50%); text-align: center; font-weight: 900; font-size: 16px; color: white; text-shadow: 0 1px 3px rgba(0,0,0,.6); white-space: pre-line; pointer-events: none; }
+    #hotbar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; }
+    .slot { position: relative; width: 52px; height: 52px; border: 2px solid rgba(255,255,255,.7); border-radius: 12px; background: rgba(20,35,58,.55); display: grid; place-items: center; padding: 0; touch-action: none; }
+    .slot.selected { border-color: #ffd524; background: rgba(20,35,58,.85); transform: translateY(-4px); box-shadow: 0 0 0 2px rgba(255,213,36,.5); }
+    .slot.empty .brick, .slot.empty .item { opacity: .35; }
+    .slot .count { position: absolute; right: 4px; bottom: 2px; font-size: 11px; color: white; }
+    .slot small { position: absolute; left: 5px; top: 2px; font-size: 9px; color: rgba(255,255,255,.7); }
+    .brick { position: relative; display: block; width: 26px; height: 20px; border-radius: 3px; background: var(--c); box-shadow: inset 0 -5px 0 rgba(0,0,0,.2); }
+    .brick:before, .brick:after { content: ''; position: absolute; top: -5px; width: 8px; height: 6px; border-radius: 50% 50% 1px 1px; background: var(--c); filter: brightness(1.15); }
+    .brick:before { left: 4px; } .brick:after { right: 4px; }
+    .brick.big { width: 54px; height: 42px; border-radius: 5px; box-shadow: inset 0 -10px 0 rgba(0,0,0,.2); }
+    .brick.big:before, .brick.big:after { top: -9px; width: 16px; height: 11px; } .brick.big:before { left: 8px; } .brick.big:after { right: 8px; }
+    .item { font-size: 24px; } .item.big { font-size: 46px; }
+    #preview { position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 12px 10px; border-radius: 12px; background: rgba(255,255,255,.55); pointer-events: none; }
+    #preview .label { font-weight: 900; font-size: 13px; }
+    #help { position: fixed; bottom: 12px; right: 12px; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,.7); font-size: 11px; font-weight: 700; pointer-events: none; text-align: right; line-height: 1.5; }
     #joystick { position: fixed; left: 24px; bottom: 28px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,.35); border: 2px solid rgba(255,255,255,.7); touch-action: none; display: none; }
     #knob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: #ffd524; box-shadow: 0 4px 10px rgba(0,0,0,.2); pointer-events: none; }
-    #jump { position: fixed; right: 28px; bottom: 40px; width: 78px; height: 78px; border-radius: 50%; border: 0; background: #ffd524; font-weight: 900; font-size: 14px; color: #3a3a27; box-shadow: 0 5px 0 #d9ad20; touch-action: none; display: none; user-select: none; -webkit-user-select: none; }
-    @media (pointer: coarse) { #joystick, #jump { display: block; } #help { display: none; } }
-    #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #0877e8; color: white; font-size: 22px; font-weight: 900; }
+    #touch { position: fixed; right: 18px; bottom: 24px; display: none; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #touch button { width: 70px; height: 70px; border-radius: 50%; border: 0; font-weight: 900; font-size: 13px; color: #3a3a27; box-shadow: 0 5px 0 rgba(0,0,0,.25); touch-action: none; user-select: none; -webkit-user-select: none; }
+    #jump { background: #ffd524; } #dig { background: #a0a5a9; } #build { background: #bbe90b; } #eat { background: #e4adc8; }
+    @media (pointer: coarse) { #joystick, #touch { display: grid; } #help { display: none; } #hud { display: none; } #vitals { bottom: 132px; } #preview { bottom: 68px; } .slot { width: 42px; height: 42px; } .bar { width: 120px; } }
+    .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,119,232,.92); color: white; padding: 20px; }
+    .overlay[hidden] { display: none; }
+    .card { max-width: 440px; width: 100%; background: white; color: #14233a; border-radius: 22px; padding: 22px 24px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    .card h1 { margin: 0 0 6px; font-size: 26px; color: #0754a6; } .card h2 { margin: 0 0 8px; font-size: 22px; color: #a52626; }
+    .card ul { padding-left: 20px; margin: 10px 0 16px; line-height: 1.5; font-weight: 700; font-size: 14px; }
+    .card table { width: 100%; border-collapse: collapse; margin: 6px 0 16px; font-weight: 700; } .card td { padding: 5px 0; border-bottom: 1px solid #e3f3ff; } .card td:last-child { text-align: right; }
+    .card button { width: 100%; padding: 14px; border: 0; border-radius: 14px; background: #ffd524; color: #3a3a27; font-size: 18px; font-weight: 900; box-shadow: 0 5px 0 #d9ad20; cursor: pointer; }
+    #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #0877e8; color: white; font-size: 22px; font-weight: 900; z-index: 5; }
     #loading[hidden] { display: none; }
     #loading small { display: block; margin-top: 8px; font-size: 13px; font-weight: 700; opacity: .85; }
   </style>
@@ -25,11 +63,23 @@
 </head>
 <body>
   <canvas id="world"></canvas>
+  <div id="crosshair"></div>
   <div id="hud">loading…</div>
-  <a id="title" href="../">🌍 Algo World · prototype</a>
-  <div id="help">WASD / arrows walk · Shift run · Space jump · drag to look · wheel to zoom</div>
+  <a id="title" href="../">🌍 Algo World · survival</a>
+  <div id="clock">0:00</div>
+  <div id="vitals">
+    <div id="hearts"></div>
+    <div class="meter"><span class="icon">🍎</span><div class="bar"><div id="hunger-fill"></div></div></div>
+    <div class="meter" id="air" hidden><span class="icon">💨</span><div class="bar"><div id="air-fill"></div></div></div>
+  </div>
+  <div id="messages"></div>
+  <div id="preview"></div>
+  <div id="hotbar"></div>
+  <div id="help">WASD walk · Shift run · Space jump / swim up<br>drag to look · wheel to zoom<br>click or E dig · right-click or R build · 1–8 pick · F eat</div>
   <div id="joystick"><div id="knob"></div></div>
-  <button id="jump">JUMP</button>
+  <div id="touch"><button id="dig">DIG</button><button id="build">BUILD</button><button id="eat">EAT</button><button id="jump">JUMP</button></div>
+  <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><ul id="start-rules"></ul><button id="play">Play ▶</button></div></div>
+  <div id="gameover" class="overlay" hidden><div class="card"><h2>Game over</h2><p id="cause"></p><table id="game-stats"></table><button id="retry">Try again on this planet ↻</button></div></div>
   <div id="loading"><div>Building your planet…<small>generating the ground under your feet</small></div></div>
   <script type="module" src="src/main.js"></script>
 </body>

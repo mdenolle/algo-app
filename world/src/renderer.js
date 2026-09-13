@@ -48,8 +48,24 @@ export class Renderer {
     this.plain = createBrickGeometry({ studded: false });
     // Slightly glossy ABS plastic. Colors come per instance.
     this.material = new THREE.MeshStandardMaterial({ roughness: 0.42, metalness: 0.02 });
+    // Water: a translucent sheet at the top of the sea-level layer, seen from both sides.
+    this.waterGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.5, 0);
+    this.waterMaterial = new THREE.MeshStandardMaterial({ color: 0x078bc9, transparent: true, opacity: 0.72, roughness: 0.15, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false });
+    // Apples: LEGO red spheres with a tiny stem.
+    this.appleGeometry = mergeGeometries([new THREE.SphereGeometry(0.3, 12, 10), new THREE.CylinderGeometry(0.03, 0.03, 0.18, 6).translate(0, 0.36, 0)], false);
+    this.appleMaterial = new THREE.MeshStandardMaterial({ color: 0xc91a09, roughness: 0.3 });
     this.meshes = new Map();
     this.blockCount = 0;
+
+    // Block highlight for digging/building.
+    this.highlight = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }));
+    this.highlight.visible = false;
+    this.highlight.matrixAutoUpdate = false;
+    this.scene.add(this.highlight);
+
+    this.skyFog = this.scene.fog;
+    this.underwaterFog = new THREE.Fog(0x0b5c8f, 1, 26);
+    this.underwater = false;
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -62,12 +78,12 @@ export class Renderer {
     this.camera.updateProjectionMatrix();
   }
 
-  #instanced(geometry, matrices, colors) {
+  #instanced(geometry, material, matrices, colors) {
     const count = matrices.length / 16;
-    const mesh = new THREE.InstancedMesh(geometry, this.material, count);
+    const mesh = new THREE.InstancedMesh(geometry, material, count);
     mesh.instanceMatrix.array.set(matrices);
     mesh.instanceMatrix.needsUpdate = true;
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+    if (colors) mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
     mesh.computeBoundingSphere();
     mesh.frustumCulled = true;
     return mesh;
@@ -75,20 +91,36 @@ export class Renderer {
 
   addChunk(key, data) {
     this.removeChunk(key);
-    const pair = [];
-    if (data.top.length) pair.push(this.#instanced(this.studded, data.top, data.topColor));
-    if (data.fill.length) pair.push(this.#instanced(this.plain, data.fill, data.fillColor));
-    pair.forEach(mesh => this.chunkGroup.add(mesh));
-    this.meshes.set(key, pair);
+    const set = [];
+    if (data.top.length) set.push(this.#instanced(this.studded, this.material, data.top, data.topColor));
+    if (data.fill.length) set.push(this.#instanced(this.plain, this.material, data.fill, data.fillColor));
+    if (data.water.length) { const w = this.#instanced(this.waterGeometry, this.waterMaterial, data.water, null); w.renderOrder = 2; set.push(w); }
+    if (data.apples.length) set.push(this.#instanced(this.appleGeometry, this.appleMaterial, data.apples, null));
+    set.forEach(mesh => this.chunkGroup.add(mesh));
+    this.meshes.set(key, set);
     this.blockCount += data.top.length / 16 + data.fill.length / 16;
   }
 
+  /** Show the highlight box on one block (column-major matrix from blockMatrix), or hide it. */
+  setHighlight(matrix) {
+    if (!matrix) { this.highlight.visible = false; return; }
+    this.highlight.matrix.fromArray(matrix);
+    this.highlight.visible = true;
+  }
+
+  setUnderwater(under) {
+    if (under === this.underwater) return;
+    this.underwater = under;
+    this.scene.fog = under ? this.underwaterFog : this.skyFog;
+    this.scene.background.set(under ? 0x0b5c8f : SKY);
+  }
+
   removeChunk(key) {
-    const pair = this.meshes.get(key);
-    if (!pair) return;
-    for (const mesh of pair) {
+    const set = this.meshes.get(key);
+    if (!set) return;
+    for (const mesh of set) {
       this.chunkGroup.remove(mesh);
-      this.blockCount -= mesh.count;
+      if (mesh.material === this.material) this.blockCount -= mesh.count;
       mesh.dispose();
     }
     this.meshes.delete(key);
