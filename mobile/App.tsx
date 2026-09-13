@@ -1,9 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle } from 'react-native';
 import { analyzeLegoPhoto, demoPieces, visionProvider, type DetectedPiece, type LegoColor, type LegoShape, type VisionResult } from './src/vision';
 import { catalog, describePiece, displayHex, getPart } from './src/catalog';
+import { isVoiceEnabled, say, sayBilingual, setVoiceEnabled } from './src/voice';
+import { LINES } from './src/voice/lines';
 
 type Screen = 'home' | 'scan' | 'ideas' | 'preview' | 'builder' | 'creator' | 'complete' | 'book';
 type BrickColor = LegoColor;
@@ -82,8 +84,8 @@ function Brick({color,label,shape='brick'}:{color:BrickColor,label?:string,shape
   const showStuds=shape!=='wheel'&&shape!=='axle';
   return <View style={[s.brick,{backgroundColor:brickColors[color]},shapeStyle(shape)]}>{showStuds&&<><View style={[s.stud,{backgroundColor:brickColors[color],left:7}]}/><View style={[s.stud,{backgroundColor:brickColors[color],right:7}]}/></>}{label&&<Text style={s.brickText}>{label}</Text>}</View>;
 }
-function Header({home}:{home:()=>void}) {
-  return <View style={s.header}><Pressable style={s.brand} onPress={home}><View style={s.logo}><View style={[s.logoStud,{left:7}]}/><View style={[s.logoStud,{right:7}]}/></View><Text style={s.brandText}>ALGO</Text></Pressable><View style={s.lang}><Text style={s.langText}>EN · FR</Text></View></View>;
+function Header({home,voiceOn,toggleVoice}:{home:()=>void,voiceOn:boolean,toggleVoice:()=>void}) {
+  return <View style={s.header}><Pressable style={s.brand} onPress={home}><View style={s.logo}><View style={[s.logoStud,{left:7}]}/><View style={[s.logoStud,{right:7}]}/></View><Text style={s.brandText}>ALGO</Text></Pressable><View style={s.row}><View style={s.lang}><Text style={s.langText}>EN · FR</Text></View><Pressable style={s.voiceButton} onPress={toggleVoice} accessibilityLabel={voiceOn?'Turn Algo’s voice off':'Turn Algo’s voice on'}><Text style={s.voiceIcon}>{voiceOn?'🔊':'🔇'}</Text></Pressable></View></View>;
 }
 function Mascot() {
   return <View style={s.mascot} accessibilityLabel="Algo, the friendly building guide"><Text style={[s.spark,{left:8}]}>✦</Text><Text style={[s.spark,{right:0,top:15}]}>✦</Text><View style={s.hair}/><View style={s.head}><View style={s.eyeRow}><View style={s.eye}/><View style={s.eye}/></View><Text style={s.smile}>⌣</Text></View><View style={[s.arm,{left:35,transform:[{rotate:'12deg'}]}]}/><View style={[s.arm,{right:29,transform:[{rotate:'-42deg'}]}]}/><View style={s.body}><View style={s.chest}><Text style={s.chestText}>SL</Text></View></View><View style={[s.leg,{left:54}]}/><View style={[s.leg,{right:54}]}/></View>;
@@ -113,6 +115,9 @@ export default function App() {
   const [bookPage,setBookPage]=useState(0);
   const [detectedPieces,setDetectedPieces]=useState(inventory);
   const [scanResult,setScanResult]=useState<VisionResult|null>(null);
+  const [voiceOn,setVoiceOn]=useState(isVoiceEnabled());
+  useEffect(()=>{say(LINES.greeting,{lineId:'greeting'})},[]);
+  function toggleVoice(){const next=!voiceOn;setVoiceEnabled(next);setVoiceOn(next);if(next)say(LINES.greeting,{lineId:'greeting'})}
   const placed=board.filter(Boolean).length;
   const bookPageTotal=build.steps.length+3;
   const go=(next:Screen)=>{setScreen(next);setHint(false)};
@@ -130,6 +135,7 @@ export default function App() {
       setDetectedPieces(result.pieces);
       setScanResult(result);
       go('ideas');
+      say(`I found ${result.totalPieces} pieces. Here are three awesome ideas!`);
     } catch(error) {
       const message=error instanceof Error?error.message:'Algo could not scan that photo.';
       Alert.alert('Scanner needs help',message);
@@ -137,15 +143,18 @@ export default function App() {
       setScanning(false);
     }
   }
-  function previewBuild(nextBuild:typeof builds[number]){setBuild(nextBuild);setCreationName(`Alex’s ${nextBuild.title}`);go('preview')}
-  function startBuild(){setStep(0);go('builder')}
+  function previewBuild(nextBuild:typeof builds[number]){setBuild(nextBuild);setCreationName(`Alex’s ${nextBuild.title}`);go('preview');say(`Here is the finished ${nextBuild.title}. Take a good look, then we can build it together!`)}
+  function startBuild(){setStep(0);go('builder');say(`Let’s build the ${build.title}! ${build.steps[0].text}`,{lineId:`${build.id}-step-1`})}
+  function goToStep(next:number){setStep(next);setHint(false);say(build.steps[next].text,{lineId:`${build.id}-step-${next+1}`})}
+  function toggleHint(){const next=!hint;setHint(next);if(next)say(build.steps[step].hint,{lineId:`${build.id}-hint-${step+1}`})}
+  function finishBuild(){go('complete');say(LINES.complete,{lineId:'complete'})}
   function toggleCell(index:number){setBoard(old=>old.map((value,i)=>i===index?(value?null:selectedPiece):value))}
 
-  return <SafeAreaView style={s.safe}><StatusBar style="dark"/><View style={s.app}><Header home={()=>go('home')}/>
+  return <SafeAreaView style={s.safe}><StatusBar style="dark"/><View style={s.app}><Header home={()=>go('home')} voiceOn={voiceOn} toggleVoice={toggleVoice}/>
     {screen==='home'&&<ScrollView contentContainerStyle={s.page}>
       <View style={s.hero}><Mascot/><View style={s.heroCopy}><Text style={s.heroLabel}>YOUR FRIENDLY AI GUIDE</Text><Text style={s.heroTitle}>Hi! I’m Algo.</Text><Text style={s.heroText}>Show me your pieces, and let’s build something amazing!</Text><Primary onPress={()=>go('scan')}>📸  Scan my pieces</Primary></View></View>
-      <View style={s.jokeCard}><Text style={s.jokeBadge}>FRENCH FUN</Text><Text style={s.jokeQuestion}>“Pourquoi les briques sont-elles heureuses?”</Text>{joke?<Text style={s.jokeAnswer}>Parce qu’elles s’emboîtent bien!{`\n`}<Text style={s.translation}>They fit together well!</Text></Text>:<Pressable onPress={()=>setJoke(true)}><Text style={s.link}>Tell me, Algo!</Text></Pressable>}</View>
-      <Pressable onPress={()=>go('ideas')}><Text style={s.demo}>No photo yet? Try Alex’s demo pieces →</Text></Pressable>
+      <View style={s.jokeCard}><Text style={s.jokeBadge}>FRENCH FUN</Text><Text style={s.jokeQuestion}>“Pourquoi les briques sont-elles heureuses?”</Text>{joke?<Text style={s.jokeAnswer}>Parce qu’elles s’emboîtent bien!{`\n`}<Text style={s.translation}>They fit together well!</Text></Text>:<Pressable onPress={()=>{setJoke(true);sayBilingual(LINES['joke-answer-fr'],LINES['joke-answer-en'],'joke-answer')}}><Text style={s.link}>Tell me, Algo!</Text></Pressable>}</View>
+      <Pressable onPress={()=>{go('ideas');say(LINES['ideas-demo'],{lineId:'ideas-demo'})}}><Text style={s.demo}>No photo yet? Try Alex’s demo pieces →</Text></Pressable>
     </ScrollView>}
 
     {screen==='scan'&&<ScrollView contentContainerStyle={s.page}>
@@ -161,7 +170,7 @@ export default function App() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.inventory}>{detectedPieces.map(item=><View key={`${item.partNum}-${item.colorId}`} style={s.inventoryItem} accessibilityLabel={`${item.count} ${item.name}, part ${item.partNum}`}><Brick color={item.color} shape={item.shape}/><Text style={s.count}>{item.count}</Text></View>)}</ScrollView>
       {builds.map(item=><Pressable key={item.id} style={s.design} onPress={()=>previewBuild(item)}><Text style={[s.badge,{backgroundColor:item.badge,color:item.badgeInk}]}>{item.level}</Text><View style={s.designIcon}><StackModel buildId={item.id}/></View><View style={{flex:1}}><Text style={s.designTitle}>{item.title}</Text><Text style={s.designDetail}>{item.detail}</Text></View><Text style={s.arrow}>→</Text></Pressable>)}
       <Pressable style={s.creatorCard} onPress={()=>go('creator')}><View style={s.plusBlock}><Text style={s.plus}>+</Text></View><View><Text style={s.designTitle}>Create My Own</Text><Text style={s.designDetail}>Invent anything you imagine</Text></View></Pressable>
-      <Secondary onPress={()=>Alert.alert('Voilà!','Algo made three fresh ideas!')}>↻ Make three new designs</Secondary>
+      <Secondary onPress={()=>{say(LINES['new-ideas'],{lineId:'new-ideas'});Alert.alert('Voilà!','Algo made three fresh ideas!')}}>↻ Make three new designs</Secondary>
     </ScrollView>}
 
     {screen==='preview'&&<ScrollView contentContainerStyle={s.page}>
@@ -174,23 +183,23 @@ export default function App() {
     {screen==='builder'&&<ScrollView contentContainerStyle={s.page}>
       <View style={s.row}><Back onPress={()=>go('ideas')} label="Ideas"/><View style={s.pill}><Text style={s.pillText}>Step {step+1} of {build.steps.length}</Text></View></View><Text style={s.title}>{build.title}</Text>
       <View style={s.topPanel}><View style={s.panelHead}><Text style={s.panelLabel}>EXACT PIECE</Text><Text style={s.panelCount}>{Math.max(0,12-step*3)} LEFT</Text></View><View style={s.needed}><Brick color={build.steps[step].color} shape={build.steps[step].shape} label={build.steps[step].piece}/></View><Text style={s.partId}>{build.steps[step].officialName} · part {build.steps[step].partNum}</Text></View>
-      <View style={s.bottomPanel}><View style={s.panelHead}><Text style={s.panelLabel}>BUILD STEP</Text><Pressable style={s.hintButton} onPress={()=>setHint(!hint)}><Text style={s.hintButtonText}>💡 Hint</Text></Pressable></View>
+      <View style={s.bottomPanel}><View style={s.panelHead}><Text style={s.panelLabel}>BUILD STEP</Text><Pressable style={s.hintButton} onPress={toggleHint}><Text style={s.hintButtonText}>💡 Hint</Text></Pressable></View>
         <View style={s.buildStage}><StackModel buildId={build.id} large upto={step+1}/><Text style={s.rotate}>↔ Swipe to look around</Text></View>
         <Text style={s.instruction}>{build.steps[step].text}</Text>{hint&&<Text style={s.hintText}>Algo says: “{build.steps[step].hint}”</Text>}
-        <View style={s.buildButtons}><Pressable style={[s.smallSecondary,step===0&&s.disabled]} disabled={step===0} onPress={()=>setStep(step-1)}><Text style={s.secondaryText}>← Back</Text></Pressable><Pressable style={s.smallPrimary} onPress={()=>step===build.steps.length-1?go('complete'):setStep(step+1)}><Text style={s.primaryText}>{step===build.steps.length-1?'I’m finished! ✓':'Piece added ✓'}</Text></Pressable></View>
+        <View style={s.buildButtons}><Pressable style={[s.smallSecondary,step===0&&s.disabled]} disabled={step===0} onPress={()=>goToStep(step-1)}><Text style={s.secondaryText}>← Back</Text></Pressable><Pressable style={s.smallPrimary} onPress={()=>step===build.steps.length-1?finishBuild():goToStep(step+1)}><Text style={s.primaryText}>{step===build.steps.length-1?'I’m finished! ✓':'Piece added ✓'}</Text></Pressable></View>
       </View>
     </ScrollView>}
 
     {screen==='creator'&&<ScrollView contentContainerStyle={s.page}>
       <View style={s.row}><Back onPress={()=>go('ideas')} label="Ideas"/><Pressable onPress={()=>setBoard(Array(42).fill(null))}><Text style={s.link}>Clear</Text></Pressable></View><Intro label="CREATOR MODE" title="Build your own!" subtitle="Choose a piece, then tap the board to place it."/>
       <View style={s.topPanel}><View style={s.panelHead}><Text style={s.panelLabel}>SHAPES &amp; COLORS</Text><Text style={s.panelCount}>{Math.max(0,(scanResult?.totalPieces??34)-placed)} LEFT</Text></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.palette}>{detectedPieces.map(item=><Pressable key={`${item.partNum}-${item.colorId}`} accessibilityLabel={`${item.name}, part ${item.partNum}`} style={[s.palettePiece,selectedPiece.partNum===item.partNum&&selectedPiece.colorId===item.colorId&&s.selected]} onPress={()=>setSelectedPiece(item)}><Brick color={item.color} shape={item.shape}/><Text style={s.count}>{item.count}</Text></Pressable>)}</ScrollView></View>
-      <View style={s.bottomPanel}><View style={s.panelHead}><Text style={s.panelLabel}>YOUR CREATION</Text><Text style={s.panelCount}>{placed} PLACED</Text></View><View style={s.board}>{board.map((piece,i)=><Pressable key={i} style={s.cell} onPress={()=>toggleCell(i)}>{piece&&<View style={[s.placed,{backgroundColor:brickColors[piece.color]},shapeStyle(piece.shape,true)]}/>}</Pressable>)}</View><Text style={s.creatorMessage}>Algo says: “I can’t wait to see what you invent!”</Text><Primary disabled={placed<3} onPress={()=>{setCreationName('Alex’s Amazing Invention');go('complete')}}>Finish my creation</Primary></View>
+      <View style={s.bottomPanel}><View style={s.panelHead}><Text style={s.panelLabel}>YOUR CREATION</Text><Text style={s.panelCount}>{placed} PLACED</Text></View><View style={s.board}>{board.map((piece,i)=><Pressable key={i} style={s.cell} onPress={()=>toggleCell(i)}>{piece&&<View style={[s.placed,{backgroundColor:brickColors[piece.color]},shapeStyle(piece.shape,true)]}/>}</Pressable>)}</View><Text style={s.creatorMessage}>Algo says: “{LINES['creator-welcome']}”</Text><Primary disabled={placed<3} onPress={()=>{setCreationName('Alex’s Amazing Invention');go('complete');say(LINES['invention-complete'],{lineId:'invention-complete'})}}>Finish my creation</Primary></View>
     </ScrollView>}
 
     {screen==='complete'&&<ScrollView contentContainerStyle={[s.page,s.complete]}>
       <View style={s.check}><Text style={s.checkText}>✓</Text></View><Intro label="MAGNIFIQUE!" title="You built it!" subtitle="Give your amazing creation a name."/><TextInput style={s.nameInput} value={creationName} onChangeText={setCreationName} maxLength={40}/>
       <View style={s.book}><Text style={s.bookOverline}>MY BUILD BOOK</Text><Text style={s.bookTitle}>{creationName}</Text><Text style={s.bookIcon}>{creationName.includes('Invention')?'✨':build.icon}</Text><Text style={s.bookFooter}>Designed with Algo</Text></View>
-      <Primary onPress={()=>{setBookPage(0);go('book')}}>📖  Make my instruction book</Primary><Secondary onPress={()=>go('ideas')}>Build something else</Secondary><Text style={s.adult}>A grown-up will help with printing, payment, and delivery.</Text>
+      <Primary onPress={()=>{setBookPage(0);go('book');say(LINES['book-ready'],{lineId:'book-ready'})}}>📖  Make my instruction book</Primary><Secondary onPress={()=>go('ideas')}>Build something else</Secondary><Text style={s.adult}>A grown-up will help with printing, payment, and delivery.</Text>
     </ScrollView>}
 
     {screen==='book'&&<ScrollView contentContainerStyle={s.page}>
@@ -208,7 +217,7 @@ export default function App() {
 }
 
 const s=StyleSheet.create({
-  safe:{flex:1,backgroundColor:C.paper},app:{flex:1,width:'100%',maxWidth:560,alignSelf:'center',backgroundColor:C.paper},header:{height:66,paddingHorizontal:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},page:{paddingHorizontal:18,paddingBottom:42},
+  safe:{flex:1,backgroundColor:C.paper},app:{flex:1,width:'100%',maxWidth:560,alignSelf:'center',backgroundColor:C.paper},header:{height:66,paddingHorizontal:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},voiceButton:{marginLeft:8,width:36,height:36,alignItems:'center',justifyContent:'center',borderRadius:18,backgroundColor:C.white,elevation:2},voiceIcon:{fontSize:17},page:{paddingHorizontal:18,paddingBottom:42},
   brand:{flexDirection:'row',alignItems:'center',gap:9},brandText:{color:C.dark,fontSize:25,fontWeight:'900',letterSpacing:1},logo:{width:37,height:25,borderRadius:5,backgroundColor:C.blue,borderBottomWidth:5,borderBottomColor:'#075AAF'},logoStud:{position:'absolute',top:-6,width:11,height:7,borderTopLeftRadius:5,borderTopRightRadius:5,backgroundColor:'#3198FF'},lang:{paddingHorizontal:10,paddingVertical:7,backgroundColor:C.white,borderRadius:14,elevation:2},langText:{color:C.dark,fontSize:11,fontWeight:'900'},
   hero:{minHeight:535,borderRadius:30,overflow:'hidden',backgroundColor:C.blue,padding:24,justifyContent:'flex-end',elevation:8},heroCopy:{alignItems:'center'},heroLabel:{color:C.yellow,fontSize:11,fontWeight:'900',letterSpacing:1.4},heroTitle:{color:C.white,fontSize:42,lineHeight:50,fontWeight:'900'},heroText:{maxWidth:330,marginBottom:6,color:C.white,fontSize:17,lineHeight:24,textAlign:'center',fontWeight:'700'},
   primary:{width:'100%',minHeight:56,padding:14,marginTop:12,alignItems:'center',justifyContent:'center',borderRadius:16,backgroundColor:C.yellow,borderBottomWidth:5,borderBottomColor:'#D6A900',elevation:3},primaryText:{color:'#29323C',fontSize:16,fontWeight:'900'},secondary:{width:'100%',minHeight:52,padding:13,marginTop:11,alignItems:'center',justifyContent:'center',borderWidth:2,borderColor:'#CFE2F3',borderRadius:16,backgroundColor:C.white},secondaryText:{color:C.dark,fontWeight:'900'},disabled:{opacity:.38},
