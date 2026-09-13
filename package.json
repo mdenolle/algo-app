@@ -1,0 +1,11 @@
+{
+  "name": "algo-app",
+  "private": true,
+  "description": "Algo: web prototype, Expo mobile app, and the verified LEGO part catalog they share.",
+  "scripts": {
+    "catalog:build": "node catalog/build-catalog.mjs",
+    "catalog:build:offline": "node catalog/build-catalog.mjs --offline",
+    "test": "node --test catalog/*.test.mjs",
+    "web": "python3 -m http.server 8000"
+  }
+}

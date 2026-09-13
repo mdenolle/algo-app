@@ -220,6 +220,7 @@ p { line-height: 1.45; }
 .builder-top, .creator-top { padding: 13px; border: 2px solid #d7e8f5; border-radius: 18px; background: #f4faff; }
 .panel-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .6px; }
 .panel-label b { color: var(--blue-dark); }
+.needed-caption { margin: 8px 0 0; text-align: center; font-size: 11px; font-weight: 700; color: var(--gray); }
 .needed-pieces { display: flex; justify-content: center; gap: 13px; min-height: 55px; align-items: center; }
 .needed-piece { position: relative; display: grid; place-items: center; width: 58px; height: 49px; border-radius: 8px; color: white; font-weight: 900; box-shadow: var(--brick-shadow); }
 .needed-piece:before, .placed-brick:before { content: ''; position: absolute; left: 8px; right: 8px; top: -6px; height: 8px; border-radius: 5px 5px 1px 1px; background: inherit; }

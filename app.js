@@ -3,10 +3,50 @@ const toast = document.querySelector('#toast');
 let soundOn = true;
 let currentStep = 0;
 let currentBuild = 'rocket';
-let selectedColor = 'blue';
-let selectedShape = 'brick';
 let placedCount = 0;
 let bookPage = 0;
+
+// Verified LEGO parts: catalog/catalog.js is generated from Rebrickable's data
+// dumps by catalog/build-catalog.mjs. Every piece below is a real (part, color)
+// element; lookups throw if a design asks for a combination LEGO never made.
+const catalog = window.ALGO_CATALOG;
+const partIndex = new Map(catalog.parts.map(part => [part.partNum, part]));
+const colorIndex = new Map(catalog.colors.map(color => [color.id, color]));
+
+function getPart(partNum) {
+  const part = partIndex.get(partNum);
+  if (!part) throw new Error(`Part ${partNum} is not in catalog/curated.json`);
+  return part;
+}
+function getColor(colorId) {
+  const color = colorIndex.get(colorId);
+  if (!color) throw new Error(`Color ${colorId} is not in the Algo palette`);
+  return color;
+}
+// Pure white is tinted so studs stay visible on white cards.
+function displayHex(colorId) {
+  const { rgb } = getColor(colorId);
+  return rgb === 'FFFFFF' ? '#dfe7ee' : `#${rgb}`;
+}
+function describePiece(partNum, colorId) {
+  const part = getPart(partNum);
+  const color = getColor(colorId);
+  const elementId = part.elements[String(colorId)];
+  if (!elementId) throw new Error(`LEGO never made ${part.name} (${partNum}) in ${color.name}`);
+  return { partNum, colorId, elementId, color: color.kid, shape: part.family, hex: displayHex(colorId), name: `${color.kid} ${part.kidName}`, officialName: `${color.name} ${part.name}` };
+}
+// Alex's demo pieces: [partNum, Rebrickable colorId, count].
+const demoInventory = [
+  ['3001', 1, 6],   // Blue Brick 2 x 4
+  ['3003', 4, 8],   // Red Brick 2 x 2
+  ['3020', 14, 6],  // Yellow Plate 2 x 4
+  ['3039', 2, 4],   // Green Brick Sloped 45° 2 x 2
+  ['6091', 15, 3],  // White Brick Curved 1 x 2 x 1 1/3
+  ['6014b', 0, 4],  // Black Wheel 11 x 12
+  ['3705', 0, 3],   // Black Technic Axle 4
+].map(([partNum, colorId, count]) => ({ ...describePiece(partNum, colorId), count }));
+// Step pieces: { part, color, qty } resolved to a drawable, nameable piece.
+const need = (part, color, qty = 1) => ({ ...describePiece(part, color), qty });
 
 const builds = {
   rocket: {
@@ -14,28 +54,28 @@ const builds = {
     icon: '🚀',
     pieces: 12,
     steps: [
-      { text: 'Start with two blue bricks for the engine base.', hint: 'Leave a little space between the two engine blocks.', pieces: [['blue', '2×4 ×2', 'brick']], model: [['blue', 43, 34, 14, 'brick', 41, 0], ['blue', 43, 34, 14, 'brick', 59, 0]] },
-      { text: 'Build the tall red rocket body in the center.', hint: 'Keep the red body centered so the rocket balances.', pieces: [['red', '2×2 ×4', 'short']], model: [['blue', 43, 34, 14, 'brick', 41, 0], ['blue', 43, 34, 14, 'brick', 59, 0], ['red', 57, 82, 47, 'short', 50, 0]] },
-      { text: 'Add two thin yellow wing plates.', hint: 'Angle one wing to the left and one to the right.', pieces: [['yellow', 'plate ×2', 'plate']], model: [['blue', 43, 34, 14, 'brick', 41, 0], ['blue', 43, 34, 14, 'brick', 59, 0], ['red', 57, 82, 47, 'short', 50, 0], ['yellow', 78, 18, 48, 'plate', 31, -12], ['yellow', 78, 18, 48, 'plate', 69, 12]] },
-      { text: 'Click the white sloped nose on top. Ready for launch!', hint: 'The point should face straight up.', pieces: [['white', 'slope', 'slope']], model: [['blue', 43, 34, 14, 'brick', 41, 0], ['blue', 43, 34, 14, 'brick', 59, 0], ['red', 57, 82, 47, 'short', 50, 0], ['yellow', 78, 18, 48, 'plate', 31, -12], ['yellow', 78, 18, 48, 'plate', 69, 12], ['white', 55, 52, 129, 'slope', 50, 0]] }
+      { text: 'Start with two blue bricks for the engine base.', hint: 'Leave a little space between the two engine blocks.', pieces: [need('3001', 1, 2)], model: [['blue', 43, 34, 14, 'brick', 41, 0], ['blue', 43, 34, 14, 'brick', 59, 0]] },
+      { text: 'Build the tall red rocket body in the center.', hint: 'Keep the red body centered so the rocket balances.', pieces: [need('3003', 4, 4)], model: [['blue', 43, 34, 14, 'brick', 41, 0], ['blue', 43, 34, 14, 'brick', 59, 0], ['red', 57, 82, 47, 'short', 50, 0]] },
+      { text: 'Add two thin yellow wing plates.', hint: 'Angle one wing to the left and one to the right.', pieces: [need('3020', 14, 2)], model: [['blue', 43, 34, 14, 'brick', 41, 0], ['blue', 43, 34, 14, 'brick', 59, 0], ['red', 57, 82, 47, 'short', 50, 0], ['yellow', 78, 18, 48, 'plate', 31, -12], ['yellow', 78, 18, 48, 'plate', 69, 12]] },
+      { text: 'Click the white sloped nose on top. Ready for launch!', hint: 'The point should face straight up.', pieces: [need('3039', 15, 1)], model: [['blue', 43, 34, 14, 'brick', 41, 0], ['blue', 43, 34, 14, 'brick', 59, 0], ['red', 57, 82, 47, 'short', 50, 0], ['yellow', 78, 18, 48, 'plate', 31, -12], ['yellow', 78, 18, 48, 'plate', 69, 12], ['white', 55, 52, 129, 'slope', 50, 0]] }
     ]
   },
   creature: {
     title: 'Tiny Brick Dragon', icon: '🐉', pieces: 23,
     steps: [
-      { text: 'Build the dragon’s long green body and two feet.', hint: 'The feet go under the body so it can stand.', pieces: [['green','body + feet','brick']], model: [['green',112, 40, 45, 'curve', 51, 0], ['green',35,22,23,'short',42,0], ['green',35,22,23,'short',60,0]] },
-      { text: 'Add the blue neck and friendly head.', hint: 'Put the head forward so the dragon looks curious.', pieces: [['blue','neck + head','brick']], model: [['green',112,40,45,'curve',51,0], ['green',35,22,23,'short',42,0], ['green',35,22,23,'short',60,0], ['blue',35,55,80,'brick',34,-8], ['blue',58,40,125,'short',27,0]] },
-      { text: 'Give your dragon two yellow sloped wings.', hint: 'Raise the wings so the dragon looks ready to fly.', pieces: [['yellow','slope ×2','slope']], model: [['green',112,40,45,'curve',51,0], ['green',35,22,23,'short',42,0], ['green',35,22,23,'short',60,0], ['blue',35,55,80,'brick',34,-8], ['blue',58,40,125,'short',27,0], ['yellow',90,32,82,'slope',55,-24], ['yellow',80,30,96,'slope',68,18]] },
-      { text: 'Finish with a curved red tail and tiny horns.', hint: 'Sweep the tail upward behind the body.', pieces: [['red','tail + horns','curve']], model: [['green',112,40,45,'curve',51,0], ['green',35,22,23,'short',42,0], ['green',35,22,23,'short',60,0], ['blue',35,55,80,'brick',34,-8], ['blue',58,40,125,'short',27,0], ['yellow',90,32,82,'slope',55,-24], ['yellow',80,30,96,'slope',68,18], ['red',88,24,58,'curve',78,-22], ['red',17,25,164,'slope',22,-12], ['red',17,25,164,'slope',31,12]] }
+      { text: 'Build the dragon’s long green body and two feet.', hint: 'The feet go under the body so it can stand.', pieces: [need('3298', 2, 1), need('3003', 2, 2)], model: [['green',112, 40, 45, 'curve', 51, 0], ['green',35,22,23,'short',42,0], ['green',35,22,23,'short',60,0]] },
+      { text: 'Add the blue neck and friendly head.', hint: 'Put the head forward so the dragon looks curious.', pieces: [need('3004', 1, 1), need('3003', 1, 1)], model: [['green',112,40,45,'curve',51,0], ['green',35,22,23,'short',42,0], ['green',35,22,23,'short',60,0], ['blue',35,55,80,'brick',34,-8], ['blue',58,40,125,'short',27,0]] },
+      { text: 'Give your dragon two yellow sloped wings.', hint: 'Raise the wings so the dragon looks ready to fly.', pieces: [need('3039', 14, 2)], model: [['green',112,40,45,'curve',51,0], ['green',35,22,23,'short',42,0], ['green',35,22,23,'short',60,0], ['blue',35,55,80,'brick',34,-8], ['blue',58,40,125,'short',27,0], ['yellow',90,32,82,'slope',55,-24], ['yellow',80,30,96,'slope',68,18]] },
+      { text: 'Finish with a curved red tail and tiny horns.', hint: 'Sweep the tail upward behind the body.', pieces: [need('6091', 4, 1), need('3040b', 4, 2)], model: [['green',112,40,45,'curve',51,0], ['green',35,22,23,'short',42,0], ['green',35,22,23,'short',60,0], ['blue',35,55,80,'brick',34,-8], ['blue',58,40,125,'short',27,0], ['yellow',90,32,82,'slope',55,-24], ['yellow',80,30,96,'slope',68,18], ['red',88,24,58,'curve',78,-22], ['red',17,25,164,'slope',22,-12], ['red',17,25,164,'slope',31,12]] }
     ]
   },
   city: {
     title: 'Skyline City', icon: '🏙️', pieces: 34,
     steps: [
-      { text: 'Make a wide blue foundation and road.', hint: 'Keep the base flat so every building stays steady.', pieces: [['blue','base ×4','brick']], model: [['blue',190,30,14,'brick',50,0], ['gray',150,10,45,'axle',50,0]] },
-      { text: 'Build a tall red tower on the left.', hint: 'Stack the red bricks straight up.', pieces: [['red','2×2 ×8','short']], model: [['blue',190,30,14,'brick',50,0], ['gray',150,10,45,'axle',50,0], ['red',58,120,44,'short',32,0]] },
-      { text: 'Build a shorter green tower on the right.', hint: 'Different heights make the skyline interesting.', pieces: [['green','slopes ×4','slope']], model: [['blue',190,30,14,'brick',50,0], ['gray',150,10,45,'axle',50,0], ['red',58,120,44,'short',32,0], ['green',72,82,44,'slope',66,0]] },
-      { text: 'Add yellow windows and white rooftops.', hint: 'Make a window pattern that repeats on each floor.', pieces: [['yellow','plates ×6','plate'],['white','roofs ×3','curve']], model: [['blue',190,30,14,'brick',50,0], ['gray',150,10,45,'axle',50,0], ['red',58,120,44,'short',32,0], ['green',72,82,44,'slope',66,0], ['yellow',30,12,70,'plate',32,0], ['yellow',30,12,100,'plate',32,0], ['yellow',38,12,70,'plate',66,0], ['white',66,24,164,'curve',32,0], ['white',80,24,126,'slope',66,0]] }
+      { text: 'Make a wide blue foundation and road.', hint: 'Keep the base flat so every building stays steady.', pieces: [need('3001', 1, 4), need('3705', 0, 1)], model: [['blue',190,30,14,'brick',50,0], ['gray',150,10,45,'axle',50,0]] },
+      { text: 'Build a tall red tower on the left.', hint: 'Stack the red bricks straight up.', pieces: [need('3003', 4, 8)], model: [['blue',190,30,14,'brick',50,0], ['gray',150,10,45,'axle',50,0], ['red',58,120,44,'short',32,0]] },
+      { text: 'Build a shorter green tower on the right.', hint: 'Different heights make the skyline interesting.', pieces: [need('3039', 2, 4)], model: [['blue',190,30,14,'brick',50,0], ['gray',150,10,45,'axle',50,0], ['red',58,120,44,'short',32,0], ['green',72,82,44,'slope',66,0]] },
+      { text: 'Add yellow windows and white rooftops.', hint: 'Make a window pattern that repeats on each floor.', pieces: [need('3023', 14, 6), need('6091', 15, 3)], model: [['blue',190,30,14,'brick',50,0], ['gray',150,10,45,'axle',50,0], ['red',58,120,44,'short',32,0], ['green',72,82,44,'slope',66,0], ['yellow',30,12,70,'plate',32,0], ['yellow',30,12,100,'plate',32,0], ['yellow',38,12,70,'plate',66,0], ['white',66,24,164,'curve',32,0], ['white',80,24,126,'slope',66,0]] }
     ]
   }
 };
@@ -109,7 +149,7 @@ function runScan() {
     clearInterval(interval);
     overlay.hidden = true;
     showScreen('ideas');
-    say('I found thirty four pieces. Here are three awesome ideas!');
+    say(`I found ${demoInventory.reduce((sum, piece) => sum + piece.count, 0)} pieces. Here are three awesome ideas!`);
   }, 2100);
 }
 
@@ -136,12 +176,14 @@ document.querySelectorAll('[data-build]').forEach(card => {
   card.addEventListener('click', () => previewBuild(card.dataset.build));
 });
 
+const hexByKid = Object.fromEntries(catalog.colors.map(c => [c.kid, displayHex(c.id)]));
+
 function renderModel(target, model) {
   target.innerHTML = '';
   model.forEach(([color, width, height, bottom, shape = 'brick', left = 50, rotate = 0], index) => {
     const brick = document.createElement('span');
     brick.className = `model-brick model-${shape}`;
-    brick.style.setProperty('--color', color === 'white' ? '#dfe7ee' : `var(--${color})`);
+    brick.style.setProperty('--color', hexByKid[color]);
     brick.style.setProperty('--w', `${width}px`);
     brick.style.setProperty('--h', `${height}px`);
     brick.style.setProperty('--bottom', `${bottom}px`);
@@ -189,12 +231,25 @@ function renderBuildStep() {
 
   const needed = document.querySelector('#needed-pieces');
   needed.innerHTML = '';
-  step.pieces.forEach(([color, label, shape = 'brick']) => {
-    const piece = document.createElement('span');
-    piece.className = `needed-piece ${color} shape-${shape}`;
-    piece.textContent = label;
-    needed.append(piece);
+  step.pieces.forEach(piece => {
+    const part = getPart(piece.partNum);
+    const size = part.size && part.size.length >= 2 ? `${part.size[0]}×${part.size[1]}` : part.family;
+    const element = document.createElement('span');
+    element.className = `needed-piece ${piece.color} shape-${piece.shape}`;
+    element.style.background = piece.hex;
+    element.textContent = piece.qty > 1 ? `${size} ×${piece.qty}` : size;
+    element.title = `${piece.officialName} · part ${piece.partNum} · element ${piece.elementId}`;
+    needed.append(element);
   });
+  // Full names and part numbers under the chips, so the real LEGO part is always visible.
+  let caption = document.querySelector('#needed-caption');
+  if (!caption) {
+    caption = document.createElement('p');
+    caption.id = 'needed-caption';
+    caption.className = 'needed-caption';
+    needed.after(caption);
+  }
+  caption.textContent = step.pieces.map(piece => `${piece.qty} × ${piece.name} (${piece.partNum})`).join(' · ');
 
   renderModel(document.querySelector('#model-display'), step.model);
 }
@@ -229,13 +284,42 @@ for (let i = 0; i < 42; i += 1) {
   board.append(cell);
 }
 
-document.querySelectorAll('.palette-piece').forEach(button => {
-  button.addEventListener('click', () => {
-    selectedColor = button.dataset.color;
-    selectedShape = button.dataset.shape;
-    document.querySelectorAll('.palette-piece').forEach(item => item.classList.toggle('selected', item === button));
+let selectedPiece = demoInventory[0];
+
+function pieceButton(piece, className) {
+  const button = document.createElement('button');
+  button.className = `${className} ${piece.color}`;
+  button.dataset.part = piece.partNum;
+  button.dataset.color = piece.colorId;
+  button.title = `${piece.count} × ${piece.officialName} · part ${piece.partNum}`;
+  button.setAttribute('aria-label', `${piece.count} ${piece.name}, part ${piece.partNum}`);
+  const mini = document.createElement('span');
+  mini.className = `mini-brick shape-${piece.shape}`;
+  mini.style.color = piece.hex;
+  const count = document.createElement('b');
+  count.textContent = piece.count;
+  button.append(mini, count);
+  return button;
+}
+
+function renderInventory() {
+  const strip = document.querySelector('.inventory-strip');
+  strip.innerHTML = '';
+  demoInventory.forEach(piece => strip.append(pieceButton(piece, 'inventory-pill')));
+
+  const palette = document.querySelector('#creator-palette');
+  palette.innerHTML = '';
+  demoInventory.forEach(piece => {
+    const button = pieceButton(piece, 'palette-piece');
+    button.classList.toggle('selected', piece === selectedPiece);
+    button.addEventListener('click', () => {
+      selectedPiece = piece;
+      palette.querySelectorAll('.palette-piece').forEach(item => item.classList.toggle('selected', item === button));
+    });
+    palette.append(button);
   });
-});
+}
+renderInventory();
 
 function placePiece(cell) {
   if (cell.firstElementChild) {
@@ -243,7 +327,9 @@ function placePiece(cell) {
     placedCount = Math.max(0, placedCount - 1);
   } else {
     const piece = document.createElement('span');
-    piece.className = `placed-brick ${selectedColor} shape-${selectedShape}`;
+    piece.className = `placed-brick ${selectedPiece.color} shape-${selectedPiece.shape}`;
+    piece.style.background = selectedPiece.hex;
+    piece.title = `${selectedPiece.officialName} · part ${selectedPiece.partNum}`;
     cell.append(piece);
     placedCount += 1;
   }
@@ -286,7 +372,7 @@ function escapeHTML(value) {
 
 function modelHTML(model) {
   return `<div class="final-model">${model.map(([color, width, height, bottom, shape = 'brick', left = 50, rotate = 0]) =>
-    `<span class="model-brick model-${shape}" style="--color:${color === 'white' ? '#dfe7ee' : `var(--${color})`};--w:${width}px;--h:${height}px;--bottom:${bottom}px;--left:${left}%;--rotate:${rotate}deg"></span>`
+    `<span class="model-brick model-${shape}" style="--color:${hexByKid[color]};--w:${width}px;--h:${height}px;--bottom:${bottom}px;--left:${left}%;--rotate:${rotate}deg"></span>`
   ).join('')}</div>`;
 }
 
@@ -296,9 +382,7 @@ function bookPages() {
   const finalModel = build.steps.at(-1).model;
   const pages = [
     `<div class="page-overline">MY BUILD BOOK</div><h3>${name}</h3><div class="page-art">${modelHTML(finalModel)}</div><p class="page-copy">Designed and built with Algo</p>`,
-    `<div class="page-overline">BEFORE YOU BUILD</div><h3>Shapes and colors you’ll need</h3><div class="book-inventory">${[
-      ['blue',6,'brick'],['red',8,'short'],['yellow',6,'plate'],['green',4,'slope'],['white',3,'curve'],['black',4,'wheel'],['gray',3,'axle']
-    ].map(([color,count,shape]) => `<span class="inventory-pill ${color}"><span class="mini-brick shape-${shape}"></span><b>${count}</b></span>`).join('')}</div><p class="page-copy">Match the exact shape, size, and color before each step.</p>`,
+    `<div class="page-overline">BEFORE YOU BUILD</div><h3>Shapes and colors you’ll need</h3><div class="book-inventory">${demoInventory.map(piece => `<span class="inventory-pill ${piece.color}" title="${escapeHTML(piece.officialName)} · part ${piece.partNum}"><span class="mini-brick shape-${piece.shape}" style="color:${piece.hex}"></span><b>${piece.count}</b></span>`).join('')}</div><p class="page-copy">Match the exact shape, size, and color before each step.</p><p class="page-copy part-list">${demoInventory.map(piece => `${piece.count} × ${piece.partNum}`).join(' · ')}</p>`,
     ...build.steps.map((step, index) => `<span class="book-step-number">${index + 1}</span><div class="page-overline">BUILD STEP ${index + 1}</div><h3>${escapeHTML(step.text)}</h3><div class="page-art">${modelHTML(step.model)}</div><p class="page-copy">Algo’s hint: ${escapeHTML(step.hint)}</p>`),
     `<div class="page-overline">MAGNIFIQUE!</div><h3>You did it!</h3><div class="page-art">${modelHTML(finalModel)}</div><p class="page-copy">This creation was built by ${name}. Keep imagining, building, and having fun!</p>`
   ];

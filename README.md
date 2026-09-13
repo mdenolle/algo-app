@@ -21,6 +21,20 @@ The Android version includes the phone camera, three design choices, the top-and
 - **Remote test:** start Expo with tunnel mode and share the temporary QR code. The development computer must stay running.
 - **Standalone Android app:** create an internal-distribution APK. Friends install Algo from the private download link and see Algo's own app icon instead of Expo Go. A parent should control the build account and distribution list.
 
+## Real LEGO pieces
+
+Algo's pieces are real LEGO parts. `catalog/` builds a verified list (part number,
+official name, official colors, element ids) from Rebrickable's public data dumps,
+and both the browser prototype and the Android app read it. Alex's demo inventory
+is, for example, six Blue Brick 2 x 4 (part 3001), eight Red Brick 2 x 2 (3003) and
+four Black Wheel 11 x 12 (6014b). See [catalog/README.md](catalog/README.md) to
+refresh the data or add parts.
+
+```sh
+npm run catalog:build   # refresh from Rebrickable
+npm test                # catalog invariants
+```
+
 ## Browser prototype
 
 From this folder, run:

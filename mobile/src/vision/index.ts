@@ -15,4 +15,5 @@ export const analyzeLegoPhoto = visionProvider.analyze.bind(visionProvider);
 
 export * from './config';
 export * from './providers/onDevice';
+export { demoPieces } from './providers/demo';
 export * from './types';
