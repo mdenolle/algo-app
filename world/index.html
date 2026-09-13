@@ -19,6 +19,7 @@
     #vitals { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
     #hearts { font-size: 15px; letter-spacing: 1px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
     .meter { display: flex; align-items: center; gap: 6px; }
+    .meter[hidden] { display: none; }
     .meter .icon { font-size: 14px; }
     .bar { width: 160px; height: 10px; border-radius: 6px; background: rgba(0,0,0,.35); overflow: hidden; border: 1px solid rgba(255,255,255,.6); }
     .bar > div { height: 100%; width: 100%; background: #ffd524; transition: width .3s; }
@@ -40,12 +41,20 @@
     #preview { position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 12px 10px; border-radius: 12px; background: rgba(255,255,255,.55); pointer-events: none; }
     #preview .label { font-weight: 900; font-size: 13px; }
     #help { position: fixed; bottom: 12px; right: 12px; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,.7); font-size: 11px; font-weight: 700; pointer-events: none; text-align: right; line-height: 1.5; }
-    #joystick { position: fixed; left: 24px; bottom: 28px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,.35); border: 2px solid rgba(255,255,255,.7); touch-action: none; display: none; }
-    #knob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: #ffd524; box-shadow: 0 4px 10px rgba(0,0,0,.2); pointer-events: none; }
+    #joystick { position: fixed; left: 24px; bottom: 28px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.45); border: 3px solid rgba(255,255,255,.9); box-shadow: 0 6px 18px rgba(0,0,0,.25); touch-action: none; display: none; }
+    #joystick:before { content: 'MOVE'; position: absolute; left: 0; right: 0; top: -22px; text-align: center; font-weight: 900; font-size: 12px; color: white; text-shadow: 0 1px 3px rgba(0,0,0,.6); letter-spacing: 1px; }
+    #joystick .arrow { position: absolute; font-size: 14px; color: rgba(20,35,58,.55); font-weight: 900; }
+    #knob { position: absolute; left: 39px; top: 39px; width: 52px; height: 52px; border-radius: 50%; background: #ffd524; box-shadow: 0 4px 10px rgba(0,0,0,.25); pointer-events: none; }
+    #tips { position: fixed; left: 50%; top: 14%; transform: translateX(-50%); padding: 10px 16px; border-radius: 14px; background: rgba(20,35,58,.8); color: white; font-weight: 800; font-size: 14px; line-height: 1.6; text-align: center; pointer-events: none; white-space: pre-line; transition: opacity .6s; }
+    #tips[hidden] { display: none; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 4px 0 16px; font-size: 13px; font-weight: 700; }
+    .controls b { display: inline-block; min-width: 54px; padding: 2px 6px; margin-right: 6px; border-radius: 6px; background: #e3f3ff; color: #0754a6; text-align: center; font-size: 12px; }
     #touch { position: fixed; right: 18px; bottom: 24px; display: none; grid-template-columns: 1fr 1fr; gap: 10px; }
     #touch button { width: 70px; height: 70px; border-radius: 50%; border: 0; font-weight: 900; font-size: 13px; color: #3a3a27; box-shadow: 0 5px 0 rgba(0,0,0,.25); touch-action: none; user-select: none; -webkit-user-select: none; }
     #jump { background: #ffd524; } #dig { background: #a0a5a9; } #build { background: #bbe90b; } #eat { background: #e4adc8; }
     @media (pointer: coarse) { #joystick, #touch { display: grid; } #help { display: none; } #hud { display: none; } #vitals { bottom: 132px; } #preview { bottom: 68px; } .slot { width: 42px; height: 42px; } .bar { width: 120px; } }
+    /* Short screens (a phone held sideways, small laptop windows): vitals at the top, no help box. */
+    @media (max-height: 520px) { #vitals { top: 8px; bottom: auto; } #hearts { font-size: 13px; } .bar { width: 120px; height: 8px; } #help, #hud { display: none; } #preview { bottom: 62px; padding: 4px 10px 6px; } .brick.big { width: 36px; height: 28px; } .item.big { font-size: 30px; } #tips { top: 30%; font-size: 13px; } #clock { top: 8px; right: 10px; } #title { display: none; } }
     .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,119,232,.92); color: white; padding: 20px; }
     .overlay[hidden] { display: none; }
     .card { max-width: 440px; width: 100%; background: white; color: #14233a; border-radius: 22px; padding: 22px 24px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
@@ -76,9 +85,10 @@
   <div id="preview"></div>
   <div id="hotbar"></div>
   <div id="help">WASD walk · Shift run · Space jump / swim up<br>drag to look · wheel to zoom<br>click or E dig · right-click or R build · 1–8 pick · F eat</div>
-  <div id="joystick"><div id="knob"></div></div>
+  <div id="joystick"><span class="arrow" style="left:58px;top:6px">▲</span><span class="arrow" style="left:58px;bottom:6px">▼</span><span class="arrow" style="left:8px;top:54px">◀</span><span class="arrow" style="right:8px;top:54px">▶</span><div id="knob"></div></div>
+  <div id="tips" hidden></div>
   <div id="touch"><button id="dig">DIG</button><button id="build">BUILD</button><button id="eat">EAT</button><button id="jump">JUMP</button></div>
-  <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><ul id="start-rules"></ul><button id="play">Play ▶</button></div></div>
+  <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><div class="controls" id="controls"></div><ul id="start-rules"></ul><button id="play">Play ▶</button></div></div>
   <div id="gameover" class="overlay" hidden><div class="card"><h2>Game over</h2><p id="cause"></p><table id="game-stats"></table><button id="retry">Try again on this planet ↻</button></div></div>
   <div id="loading"><div>Building your planet…<small>generating the ground under your feet</small></div></div>
   <script type="module" src="src/main.js"></script>

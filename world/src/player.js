@@ -15,7 +15,7 @@ export class PlayerController {
     this.eyeHeight = 1.9;
     this.speed = 7;
     this.runMultiplier = 1.7;
-    this.swimMultiplier = 0.55;
+    this.swimMultiplier = 0.75;
     this.jumpSpeed = 10.2;      // clears a 2-block ledge, so a 2-deep hole is not a trap
     this.gravity = 26;
     this.stepHeight = 1.05;     // can step up one block, not two
@@ -32,6 +32,7 @@ export class PlayerController {
     this.submerged = false;
     this.moving = false;
     this.lastImpact = 0;        // blocks/s at the last landing; the game reads and clears it
+    this.jumpHeld = false;
     this.dir = [0, 0, 0];
     this.tmp = { move: new THREE.Vector3(), trial: new THREE.Vector3(), camF: new THREE.Vector3(), camR: new THREE.Vector3() };
     this.respawn(startDirection);
@@ -99,7 +100,15 @@ export class PlayerController {
     const floor = R + column.solid;
     const wasGrounded = this.grounded;
 
-    if (column.swim && r < waterR + 0.05) {
+    // At the surface, the jump button jumps you out of the water (onto a shore, a boat, anything).
+    const jumpOut = column.swim && r < waterR + 0.05 && r >= waterR - 0.4 && input.jump && !this.jumpHeld;
+    this.jumpHeld = input.jump;
+    if (jumpOut) {
+      this.velocityUp = this.jumpSpeed * 0.9;
+      r = waterR + 0.06;
+      this.grounded = false;
+      this.inWater = false;
+    } else if (column.swim && r < waterR + 0.05) {
       // Swimming: slow sink, hold jump to rise, never above the surface.
       this.velocityUp += (input.jump ? 14 : -3) * dt;
       this.velocityUp = Math.max(-4, Math.min(3.5, this.velocityUp));
@@ -123,7 +132,7 @@ export class PlayerController {
         this.velocityUp = this.jumpSpeed;
         this.grounded = false;
       }
-      this.inWater = column.swim && r < waterR + 0.05;
+      this.inWater = column.swim && r < waterR + 0.05 && !jumpOut;
     }
 
     this.position.setLength(r);

@@ -26,7 +26,15 @@ export class Hud {
       gameStats: root.querySelector('#game-stats'),
       retry: root.querySelector('#retry'),
       clock: root.querySelector('#clock'),
+      controls: root.querySelector('#controls'),
+      tips: root.querySelector('#tips'),
     };
+    this.touch = window.matchMedia('(pointer: coarse)').matches;
+    const controls = this.touch
+      ? [['joystick', 'move'], ['drag', 'look around'], ['JUMP', 'jump, swim up, hop out of water'], ['tap', 'dig the outlined block'], ['hold', 'build the block you picked'], ['EAT', 'eat an apple']]
+      : [['W A S D', 'move (or arrows)'], ['mouse', 'drag to look, wheel to zoom'], ['Space', 'jump, swim up, hop out of water'], ['click', 'dig the outlined block'], ['right-click', 'build the block you picked'], ['1 – 8', 'pick a block · F eats']];
+    this.el.controls.innerHTML = controls.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
+    this.tipsUntil = 0;
     this.el.startRules.innerHTML = RULE_SUMMARY.map(line => `<li>${line}</li>`).join('');
     this.el.play.addEventListener('click', onPlay);
     this.el.retry.addEventListener('click', onRetry);
@@ -56,6 +64,15 @@ export class Hud {
   hideOverlays() {
     this.el.start.hidden = true;
     this.el.gameover.hidden = true;
+    this.showTips(this.touch
+      ? 'Left joystick: walk  ·  drag: look around\nTap a block: dig  ·  hold: build  ·  JUMP: jump or swim'
+      : 'W A S D: walk  ·  drag the mouse: look around\nclick: dig  ·  right-click: build  ·  Space: jump or swim', 14);
+  }
+
+  showTips(text, seconds) {
+    this.el.tips.textContent = text;
+    this.el.tips.hidden = false;
+    this.tipsUntil = performance.now() + seconds * 1000;
   }
 
   showGameOver(vitals, stats) {
@@ -102,6 +119,8 @@ export class Hud {
     game.messages = game.messages.filter(m => m.until > now);
     const text = game.messages.map(m => m.text).join('\n');
     if (this.el.messages.textContent !== text) this.el.messages.textContent = text;
+
+    if (this.tipsUntil && now > this.tipsUntil) { this.el.tips.hidden = true; this.tipsUntil = 0; }
 
     const t = game.life.stats.survived;
     this.el.clock.textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;

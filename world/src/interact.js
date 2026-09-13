@@ -8,6 +8,15 @@ import { blockMatrix } from './columns.js';
 const point = new THREE.Vector3();
 const dir = [0, 0, 0];
 
+/** The column one step in front of the player's feet: what you dig or build on when the crosshair misses. */
+export function targetInFront(world, player) {
+  point.copy(player.position).addScaledVector(player.facing, 1.1).addScaledVector(player.up, 0.3);
+  const r = point.length();
+  dir[0] = point.x / r; dir[1] = point.y / r; dir[2] = point.z / r;
+  const column = world.column(dir);
+  return { dig: column, place: column, distance: 1.1, fallback: true };
+}
+
 export function findTarget(world, origin, direction, startDistance, reach, step = 0.15) {
   let previous = null;
   for (let t = startDistance; t <= startDistance + reach; t += step) {

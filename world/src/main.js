@@ -14,7 +14,7 @@ import { Input } from './input.js';
 import { Game } from './game.js';
 import { Hud } from './hud.js';
 import { RULES } from './rules.js';
-import { findTarget, highlightMatrix } from './interact.js';
+import { findTarget, highlightMatrix, targetInFront } from './interact.js';
 import * as persistence from './persistence.js';
 import { chunkOfDirection, chunkKey, latLon, normalize } from './planet.js';
 import { MATERIALS } from './materials.js';
@@ -124,7 +124,7 @@ function frame(now) {
   if (playing) {
     renderer.camera.getWorldDirection(cameraForward);
     player.headPosition(head);
-    target = findTarget(world, renderer.camera.position, cameraForward, renderer.camera.position.distanceTo(head), RULES.reach);
+    target = findTarget(world, renderer.camera.position, cameraForward, renderer.camera.position.distanceTo(head), RULES.reach) ?? targetInFront(world, player);
     renderer.setHighlight(target ? highlightMatrix(world, target.dig, highlight) : null);
     handleActions(snapshot.actions);
   } else {

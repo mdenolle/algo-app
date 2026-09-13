@@ -73,6 +73,10 @@ export class Game {
     if (events.includes('starving') && Math.random() < dt * 0.4) this.say('So hungry… find an apple', 1.5);
     this.life.stats.survived += dt;
 
+    // First time in the water: say how to get out.
+    if (p.inWater) { this.wetSeconds = (this.wetSeconds ?? 0) + dt; if (this.wetSeconds > 1.2 && !this.life.stats.swimTipShown) { this.life.stats.swimTipShown = true; this.say('Hold JUMP to swim up. At the surface, press JUMP to hop out.', 4); } }
+    else this.wetSeconds = 0;
+
     // Apples: walk over one to pick it up.
     const here = this.world.column(p.up);
     if (here.apple && this.world.pickApple(here)) {
@@ -103,15 +107,14 @@ export class Game {
     if (!target) { this.say('Aim the crosshair at the ground to build there', 2); return false; }
     if (this.inventory[slot.key] <= 0) { this.say(`No ${slot.label.toLowerCase()} left. Dig some, or pick another block (1–8)`, 2.4); return false; }
     const column = target.place;
-    // Do not build inside yourself.
     const me = this.world.column(this.player.up);
-    if (column.key === me.key && this.world.radius + column.solid + 1 > this.player.position.length() + 0.01) {
-      this.say('You are standing there! Step aside first', 1.6); return false;
-    }
+    const underMe = column.key === me.key && this.world.radius + column.solid + 1 > this.player.position.length() + 0.01;
     const height = this.world.place(column, slot.material);
     if (height === null) { this.say('Too high to build', 1.2); return false; }
     this.inventory[slot.key] -= 1;
     this.life.stats.built += 1;
+    // Building under your own feet lifts you onto the new block: the easy way up a tower.
+    if (underMe) { this.player.position.setLength(this.world.radius + height); this.player.velocityUp = 0; }
     this.chunks.rebuild(this.world.chunksTouching(column));
     return true;
   }
@@ -144,7 +147,7 @@ export const RULE_SUMMARY = [
   'You get hungry. Apples grow on the grass; walk over them, then eat (F or EAT).',
   'Falling more than about five blocks hurts.',
   'Dig: click, E or DIG (tap on a phone). Build: right-click, R or BUILD (hold your finger). Pick the block with 1–8.',
-  'You can dig under water too. Ice on the frozen sea gives ice bricks.',
+  'Build on the block you stand on and you climb up with it. Dig under water too; ice gives ice bricks.',
 ];
 
 export { RULES, MATERIALS };
