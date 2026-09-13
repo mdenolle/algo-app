@@ -21,6 +21,8 @@ const config = withOverrides(DEFAULT_CONFIG, {
 });
 
 const canvas = document.querySelector('#world');
+// Inside the Algo app the native bar has its own Back button.
+if (params.has('embedded')) document.querySelector('#title').hidden = true;
 const hud = document.querySelector('#hud');
 const loading = document.querySelector('#loading');
 const terrain = createTerrain(config);
