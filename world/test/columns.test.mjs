@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_CONFIG, planetRadius } from '../src/config.js';
 import { createTerrain } from '../src/terrain.js';
-import { EditStore, resolveColumn, naturalLayerMaterial, blockMatrix, hasApple, columnKey } from '../src/columns.js';
+import { EditStore, resolveColumn, naturalLayerMaterial, blockMatrix, hasApple, columnKey, oreAt, columnSeed } from '../src/columns.js';
 import { MATERIAL } from '../src/materials.js';
 import { columnOf, normalize } from '../src/planet.js';
 import { mulberry32 } from '../src/noise.js';
@@ -158,4 +158,48 @@ test('apples grow on about 1 in 220 grass columns and never on water', () => {
   }
   const rate = grass / Math.max(1, apples);
   assert.ok(rate > 120 && rate < 400, `one apple per ${rate.toFixed(0)} grass columns`);
+});
+
+test('ores: about one stone block in nine, deep ones only near the bottom, deterministic', () => {
+  const counts = {};
+  let stone = 0, total = 0;
+  for (let column = 0; column < 2000; column += 1) {
+    const seed = columnSeed(1, 3, column, 17);
+    for (let k = 0; k < 20; k += 1) {
+      const m = oreAt(seed, k);
+      total += 1;
+      if (m === MATERIAL.stone) stone += 1; else counts[m] = (counts[m] ?? 0) + 1;
+      assert.equal(m, oreAt(seed, k), 'deterministic');
+      if (k > 6) assert.ok(m !== MATERIAL.diamond && m !== MATERIAL.obsidian && m !== MATERIAL.lapis, 'diamond, obsidian and lapis are only near bedrock');
+      if (k > 11) assert.ok(m === MATERIAL.stone || m === MATERIAL.coal || m === MATERIAL.iron, 'shallow stone has only coal and iron');
+    }
+  }
+  const oreFraction = 1 - stone / total;
+  assert.ok(oreFraction > 0.07 && oreFraction < 0.16, `ore fraction ${oreFraction.toFixed(3)}`);
+  assert.ok(counts[MATERIAL.coal] > counts[MATERIAL.diamond], 'coal is common, diamond rare');
+  for (const m of [MATERIAL.coal, MATERIAL.iron, MATERIAL.gold, MATERIAL.diamond, MATERIAL.emerald, MATERIAL.redstone, MATERIAL.lapis, MATERIAL.obsidian]) assert.ok(counts[m] > 0, `${m} appears`);
+});
+
+test('a column with an ore seed exposes ores in its stone, and digging returns them', () => {
+  const { n, key } = grassColumn();
+  const seed = columnSeed(cfg.seed, 4, 10, 10);
+  const col = resolveColumn(n, undefined, cfg.seaLevel, seed);
+  const top = n.height - 1;
+  assert.equal(col.layer(top), MATERIAL.grass);
+  assert.equal(col.layer(top - 1), MATERIAL.dirt);
+  const deep = col.layer(4);
+  assert.ok(deep === MATERIAL.stone || MATERIALS[deep].ore, 'deep layers are stone or ore');
+  assert.equal(resolveColumn(n, undefined, cfg.seaLevel).layer(4), MATERIAL.stone, 'no seed, no ores');
+  const edits = new EditStore();
+  for (let k = top; k > 4; k -= 1) edits.dig(key, n, cfg.seaLevel, 2, seed);
+  assert.equal(edits.dig(key, n, cfg.seaLevel, 2, seed), deep, 'digging returns the ore that was rendered there');
+});
+
+test('blast lowers a column by up to depth blocks and stops at bedrock', () => {
+  const { n, key } = grassColumn();
+  const edits = new EditStore();
+  assert.equal(edits.blast(key, n, cfg.seaLevel, 3), 3);
+  assert.equal(resolveColumn(n, edits.get(key), cfg.seaLevel).h, n.height - 3);
+  const low = { height: 3, material: MATERIAL.stone, water: false };
+  assert.equal(edits.blast('low', low, cfg.seaLevel, 5), 1, 'only down to the floor');
 });

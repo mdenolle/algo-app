@@ -1,14 +1,19 @@
 // HUD: hearts, hunger, air, hotbar with preview, messages, start and game-over
 // overlays. Plain DOM; the game loop calls update() a few times a second.
 
-import { HOTBAR, RULE_SUMMARY } from './game.js';
+import { BLOCKS, BLOCK_BY_KEY, HOTBAR_SIZE, RULE_SUMMARY } from './game.js';
 import { RULES } from './rules.js';
 import { MATERIALS } from './materials.js';
 
 const hexOf = material => `#${MATERIALS[material].hex}`;
 
+function blockIcon(block, big = false) {
+  if (block.food) return `<span class="item${big ? ' big' : ''}">${block.emoji}</span>`;
+  return `<span class="brick${big ? ' big' : ''}${block.translucent ? ' glass' : ''}" style="--c:${block.hex}"></span>`;
+}
+
 export class Hud {
-  constructor(root, { onPlay, onRetry, onSelect }) {
+  constructor(root, { onPlay, onRetry, onSelect, onAssign }) {
     this.el = {
       hearts: root.querySelector('#hearts'),
       hungerFill: root.querySelector('#hunger-fill'),
@@ -28,6 +33,9 @@ export class Hud {
       clock: root.querySelector('#clock'),
       controls: root.querySelector('#controls'),
       tips: root.querySelector('#tips'),
+      picker: root.querySelector('#picker'),
+      pickerGrid: root.querySelector('#picker-grid'),
+      pickerClose: root.querySelector('#picker-close'),
     };
     this.touch = window.matchMedia('(pointer: coarse)').matches;
     const controls = this.touch
@@ -39,20 +47,36 @@ export class Hud {
     this.el.play.addEventListener('click', onPlay);
     this.el.retry.addEventListener('click', onRetry);
 
-    this.slots = HOTBAR.map((slot, index) => {
+    this.slots = Array.from({ length: HOTBAR_SIZE }, (_, index) => {
       const button = document.createElement('button');
       button.className = 'slot';
-      button.innerHTML = slot.food
-        ? `<span class="item">${slot.emoji}</span><b class="count">0</b><small>${index + 1}</small>`
-        : `<span class="brick" style="--c:${hexOf(slot.material)}"></span><b class="count">0</b><small>${index + 1}</small>`;
-      button.title = slot.label;
+      button.innerHTML = `<span class="icon"></span><b class="count">0</b><small>${index + 1}</small>`;
       button.addEventListener('pointerdown', e => { e.preventDefault(); onSelect(index); });
       this.el.hotbar.append(button);
       return button;
     });
+    this.slotKeys = Array(HOTBAR_SIZE).fill(null);
     this.lastSelected = -1;
     this.lastHearts = '';
+
+    // Block book: every block with its count; tapping one puts it in the selected slot.
+    this.pickerButtons = new Map();
+    for (const block of BLOCKS) {
+      const button = document.createElement('button');
+      button.className = 'pick';
+      button.innerHTML = `${blockIcon(block)}<span class="pick-label">${block.label}</span><b class="count">0</b>`;
+      button.addEventListener('click', () => { onAssign(block.key); this.closePicker(); });
+      this.el.pickerGrid.append(button);
+      this.pickerButtons.set(block.key, button);
+    }
+    this.el.pickerClose.addEventListener('click', () => this.closePicker());
+    this.el.picker.addEventListener('click', e => { if (e.target === this.el.picker) this.closePicker(); });
   }
+
+  get pickerOpen() { return !this.el.picker.hidden; }
+  openPicker() { this.el.picker.hidden = false; }
+  closePicker() { this.el.picker.hidden = true; }
+  togglePicker() { if (this.pickerOpen) this.closePicker(); else this.openPicker(); }
 
   showStart(resumed) {
     this.el.startTitle.textContent = resumed ? 'Welcome back!' : 'Algo World: Survival';
@@ -76,7 +100,7 @@ export class Hud {
   }
 
   showGameOver(vitals, stats) {
-    const causes = { drowned: 'You drowned. Next time, hold JUMP to swim up.', starved: 'You starved. Apples grow on the grass.', fell: 'You fell too far. Dig stairs down, or jump into water.', hurt: 'You ran out of hearts.' };
+    const causes = { drowned: 'You drowned. Next time, hold JUMP to swim up.', starved: 'You starved. Apples grow on the grass.', fell: 'You fell too far. Dig stairs down, or jump into water.', exploded: 'TNT got you. Light it, then run at least six blocks away.', hurt: 'You ran out of hearts.' };
     this.el.cause.textContent = causes[vitals.causeOfDeath] ?? causes.hurt;
     const minutes = Math.floor(stats.survived / 60), seconds = Math.floor(stats.survived % 60);
     this.el.gameStats.innerHTML = [
@@ -99,20 +123,35 @@ export class Hud {
     this.el.air.hidden = !showAir;
     if (showAir) { this.el.airFill.style.width = `${(v.air / RULES.maxAir) * 100}%`; this.el.airFill.classList.toggle('low', v.air < 4); }
 
+    let selectionChanged = game.life.selected !== this.lastSelected;
     this.slots.forEach((button, index) => {
-      const slot = HOTBAR[index];
-      const count = game.inventory[slot.key];
+      const key = game.life.hotbar[index];
+      const block = BLOCK_BY_KEY.get(key);
+      if (this.slotKeys[index] !== key) {
+        this.slotKeys[index] = key;
+        button.querySelector('.icon').innerHTML = blockIcon(block);
+        button.title = block.label;
+        if (index === game.life.selected) selectionChanged = true;
+      }
+      const count = game.inventory[key] ?? 0;
       const countEl = button.querySelector('.count');
       if (countEl.textContent !== String(count)) countEl.textContent = count;
       button.classList.toggle('empty', count === 0);
     });
-    if (game.life.selected !== this.lastSelected) {
+    if (selectionChanged) {
       this.lastSelected = game.life.selected;
       this.slots.forEach((button, index) => button.classList.toggle('selected', index === this.lastSelected));
       const slot = game.selectedSlot;
-      this.el.preview.innerHTML = slot.food
-        ? `<span class="item big">${slot.emoji}</span><span class="label">${slot.label} · eat with F</span>`
-        : `<span class="brick big" style="--c:${hexOf(slot.material)}"></span><span class="label">${slot.label}</span>`;
+      this.el.preview.innerHTML = `${blockIcon(slot, true)}<span class="label">${slot.label}${slot.food ? ' · eat with F' : ''}<small>tap to open the block book</small></span>`;
+    }
+    if (this.pickerOpen) {
+      for (const [key, button] of this.pickerButtons) {
+        const count = game.inventory[key] ?? 0;
+        const countEl = button.querySelector('.count');
+        if (countEl.textContent !== String(count)) countEl.textContent = count;
+        button.classList.toggle('empty', count === 0);
+        button.classList.toggle('selected', game.life.hotbar[game.life.selected] === key);
+      }
     }
 
     const now = performance.now();

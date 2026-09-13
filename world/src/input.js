@@ -3,7 +3,7 @@
 // jump button. poll() returns a snapshot and clears the per-frame deltas.
 
 export class Input {
-  constructor(canvas, { joystick, knob, jumpButton, digButton, buildButton, eatButton }) {
+  constructor(canvas, { joystick, knob, jumpButton, digButton, buildButton, eatButton, blocksButton, preview }) {
     this.keys = new Set();
     this.orbit = { dx: 0, dy: 0 };
     this.zoom = 0;
@@ -23,6 +23,8 @@ export class Input {
       if (e.code === 'KeyE') this.actions.push('dig');
       if (e.code === 'KeyR') this.actions.push('build');
       if (/^Digit[1-9]$/.test(e.code)) this.actions.push({ select: Number(e.code[5]) - 1 });
+      if (e.code === 'KeyB' || e.code === 'Tab') { this.actions.push('blocks'); e.preventDefault(); }
+      if (e.code === 'Escape') this.actions.push('close');
     });
     window.addEventListener('keyup', e => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
@@ -96,6 +98,8 @@ export class Input {
 
     const tap = (button, action) => button.addEventListener('pointerdown', e => { e.preventDefault(); this.actions.push(action); });
     tap(digButton, 'dig'); tap(buildButton, 'build'); tap(eatButton, 'eat');
+    tap(blocksButton, 'blocks');
+    preview.addEventListener('click', () => this.actions.push('blocks'));
 
     jumpButton.addEventListener('pointerdown', e => { e.preventDefault(); this.jumpButtonHeld = true; });
     const jumpEnd = () => { this.jumpButtonHeld = false; };

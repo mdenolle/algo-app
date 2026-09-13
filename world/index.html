@@ -38,8 +38,21 @@
     .brick.big { width: 54px; height: 42px; border-radius: 5px; box-shadow: inset 0 -10px 0 rgba(0,0,0,.2); }
     .brick.big:before, .brick.big:after { top: -9px; width: 16px; height: 11px; } .brick.big:before { left: 8px; } .brick.big:after { right: 8px; }
     .item { font-size: 24px; } .item.big { font-size: 46px; }
-    #preview { position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 12px 10px; border-radius: 12px; background: rgba(255,255,255,.55); pointer-events: none; }
+    #preview { position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 12px 10px; border-radius: 12px; background: rgba(255,255,255,.55); cursor: pointer; }
     #preview .label { font-weight: 900; font-size: 13px; }
+    #preview .label small { display: block; font-size: 10px; font-weight: 700; color: #65758b; }
+    .brick.glass { opacity: .55; border: 1px solid rgba(255,255,255,.9); }
+    #picker { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,40,80,.55); z-index: 4; }
+    #picker[hidden] { display: none; }
+    #picker .book { width: min(560px, 94vw); max-height: 86vh; overflow: auto; background: white; border-radius: 20px; padding: 16px 16px 12px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    #picker h2 { margin: 0 0 4px; font-size: 18px; color: #0754a6; } #picker p { margin: 0 0 12px; font-size: 12px; color: #65758b; font-weight: 700; }
+    #picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+    .pick { position: relative; height: 82px; border: 2px solid #e3f3ff; border-radius: 12px; background: #f7fbff; display: grid; place-items: center; padding: 6px 2px 4px; cursor: pointer; }
+    .pick.selected { border-color: #ffd524; box-shadow: 0 0 0 2px rgba(255,213,36,.5); }
+    .pick.empty { opacity: .55; }
+    .pick .pick-label { font-size: 10px; font-weight: 800; color: #14233a; text-align: center; line-height: 1.1; }
+    .pick .count { position: absolute; right: 5px; top: 3px; font-size: 11px; color: #0754a6; }
+    #picker-close { margin-top: 12px; width: 100%; padding: 10px; border: 0; border-radius: 12px; background: #ffd524; font-weight: 900; font-size: 15px; box-shadow: 0 4px 0 #d9ad20; cursor: pointer; }
     #help { position: fixed; bottom: 12px; right: 12px; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,.7); font-size: 11px; font-weight: 700; pointer-events: none; text-align: right; line-height: 1.5; }
     #joystick { position: fixed; left: 24px; bottom: 28px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.45); border: 3px solid rgba(255,255,255,.9); box-shadow: 0 6px 18px rgba(0,0,0,.25); touch-action: none; display: none; }
     #joystick:before { content: 'MOVE'; position: absolute; left: 0; right: 0; top: -22px; text-align: center; font-weight: 900; font-size: 12px; color: white; text-shadow: 0 1px 3px rgba(0,0,0,.6); letter-spacing: 1px; }
@@ -52,6 +65,8 @@
     #touch { position: fixed; right: 18px; bottom: 24px; display: none; grid-template-columns: 1fr 1fr; gap: 10px; }
     #touch button { width: 70px; height: 70px; border-radius: 50%; border: 0; font-weight: 900; font-size: 13px; color: #3a3a27; box-shadow: 0 5px 0 rgba(0,0,0,.25); touch-action: none; user-select: none; -webkit-user-select: none; }
     #jump { background: #ffd524; } #dig { background: #a0a5a9; } #build { background: #bbe90b; } #eat { background: #e4adc8; }
+    #blocks { position: fixed; right: 18px; bottom: 214px; width: 70px; height: 44px; border-radius: 14px; border: 0; background: rgba(255,255,255,.85); font-weight: 900; font-size: 12px; color: #0754a6; display: none; touch-action: none; }
+    @media (pointer: coarse) { #blocks { display: block; } }
     @media (pointer: coarse) { #joystick, #touch { display: grid; } #help { display: none; } #hud { display: none; } #vitals { bottom: 132px; } #preview { bottom: 68px; } .slot { width: 42px; height: 42px; } .bar { width: 120px; } }
     /* Short screens (a phone held sideways, small laptop windows): vitals at the top, no help box. */
     @media (max-height: 520px) { #vitals { top: 8px; bottom: auto; } #hearts { font-size: 13px; } .bar { width: 120px; height: 8px; } #help, #hud { display: none; } #preview { bottom: 62px; padding: 4px 10px 6px; } .brick.big { width: 36px; height: 28px; } .item.big { font-size: 30px; } #tips { top: 30%; font-size: 13px; } #clock { top: 8px; right: 10px; } #title { display: none; } }
@@ -84,10 +99,12 @@
   <div id="messages"></div>
   <div id="preview"></div>
   <div id="hotbar"></div>
-  <div id="help">WASD walk · Shift run · Space jump / swim up<br>drag to look · wheel to zoom<br>click or E dig · right-click or R build · 1–8 pick · F eat</div>
+  <div id="help">WASD walk · Shift run · Space jump / swim up<br>drag to look · wheel to zoom<br>click or E dig · right-click or R build · 1–9 pick · B block book · F eat</div>
   <div id="joystick"><span class="arrow" style="left:58px;top:6px">▲</span><span class="arrow" style="left:58px;bottom:6px">▼</span><span class="arrow" style="left:8px;top:54px">◀</span><span class="arrow" style="right:8px;top:54px">▶</span><div id="knob"></div></div>
   <div id="tips" hidden></div>
+  <button id="blocks">BLOCKS</button>
   <div id="touch"><button id="dig">DIG</button><button id="build">BUILD</button><button id="eat">EAT</button><button id="jump">JUMP</button></div>
+  <div id="picker" hidden><div class="book"><h2>Block book</h2><p>Tap a block to put it in the selected hotbar slot. Ores come from deep in the stone.</p><div id="picker-grid"></div><button id="picker-close">Close</button></div></div>
   <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><div class="controls" id="controls"></div><ul id="start-rules"></ul><button id="play">Play ▶</button></div></div>
   <div id="gameover" class="overlay" hidden><div class="card"><h2>Game over</h2><p id="cause"></p><table id="game-stats"></table><button id="retry">Try again on this planet ↻</button></div></div>
   <div id="loading"><div>Building your planet…<small>generating the ground under your feet</small></div></div>

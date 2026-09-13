@@ -15,11 +15,22 @@ Android app.
 | Food | Apples grow on about 1 in 220 grass columns (LEGO red). Walk over one to pick it up; eat with F, the EAT button, or by selecting slot 8 and building. +35 hunger. You start with two. | `columns.js` (`hasApple`), `game.js` |
 | Falling | Landing faster than 16 blocks/s (about a 5-block drop) costs 0.45 hearts per extra block/s. A jump clears a 2-block ledge, so a 2-deep hole is not a trap; deeper, dig steps. | `rules.js`, `player.js` |
 | Dig | Click / E / DIG / tap removes the highlighted block and puts its material in your hotbar. Grass, then dirt, then stone; sand over stone on beaches. Under water you dig the sea floor (sand, then stone), from the surface or while swimming. Ice on the frozen sea gives an ice brick and leaves an open hole. Nothing below layer 2. Digging a beach column to sea level floods it. | `columns.js` (`EditStore`), `interact.js` |
-| Build | Right-click / R / BUILD / hold a finger 0.45 s places the selected block on the column you are looking at (its top, or the column in front of a wall), on the sea floor under water, or on top of the ice. If the crosshair misses, the block right in front of your feet is the target. Build on the block you stand on and you rise with it. You start with a camp kit: 10 dirt, 6 wood, 2 apples. | same |
-| Hotbar | 1–8 or tap: Grass, Dirt, Stone, Sand, Snow, Ice, Wood, Apple, with counts and an enlarged preview. Wood cannot be dug yet (no trees); you only have the six from the kit. | `game.js` (`HOTBAR`), `hud.js` |
+| Build | Right-click / R / BUILD / hold a finger 0.45 s places the selected block on the column you are looking at (its top, or the column in front of a wall), on the sea floor under water, or on top of the ice. If the crosshair misses, the block right in front of your feet is the target. Build on the block you stand on and you rise with it. You start with a builder's chest: dirt, wood, planks, logs, leaves, glass, bricks, pink, purple, glowstone, 3 TNT, 2 apples. | same |
+| Hotbar and block book | 9 slots (1–9 or tap), each holding any block. B, Tab, the BLOCKS button or tapping the preview opens the block book: every block with its count; tap one to put it in the selected slot. | `game.js` (`BLOCKS`, `DEFAULT_HOTBAR`), `hud.js` |
+| Ores | Stone deep in the ground is one part in nine ore: coal anywhere, iron and emerald in the middle layers, gold, redstone, lapis, diamond and obsidian near bedrock (layer 6 and below). Digging an ore gives that block. Cliff faces show them. | `columns.js` (`oreAt`) |
+| TNT | Place it, hit it to light the fuse, run: 3 s later a crater 2.5 blocks wide and up to 3 deep, 4 hearts of damage within 2 blocks, fading to none at 6. Other TNT in the crater chain-reacts. | `game.js` (`light`, `explode`), `world.js` (`blast`) |
 | Save | Every 5 s and on leaving the page: planet edits, picked apples, position, camera, vitals, inventory, stats, in the browser's localStorage under the seed. Dying deletes the life, not the planet. `?reset=1` forgets everything. | `persistence.js` |
 
 All numbers live in `RULES` in `rules.js`.
+
+## Blocks
+
+Every block is a LEGO color from Rebrickable's table (`materials.js`); LEGO makes
+official Minecraft sets, so the mix is deliberate.
+
+| Terrain | Building | Ores (mined) | Special |
+|---|---|---|---|
+| Grass, Dirt, Stone, Cobblestone, Sand, Snow, Ice | Planks, Log, Leaves, Bricks, Glass (see-through), Wood, Pink, Purple, Glowstone | Coal, Iron, Gold, Emerald, Redstone, Lapis, Diamond, Obsidian | TNT, Apple |
 
 ## What V1 does
 

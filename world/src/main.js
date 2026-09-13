@@ -52,12 +52,15 @@ const input = new Input(canvas, {
   digButton: document.querySelector('#dig'),
   buildButton: document.querySelector('#build'),
   eatButton: document.querySelector('#eat'),
+  blocksButton: document.querySelector('#blocks'),
+  preview: document.querySelector('#preview'),
 });
 const game = new Game(world, player, chunks, renderer, saved?.life ? restoreLife(saved.life) : null);
 const hud = new Hud(document, {
   onPlay: () => { game.started = true; hud.hideOverlays(); },
   onRetry: () => { game.newLife(world.terrain.findSpawn()); game.started = true; cameraController.initialised = false; hud.hideOverlays(); persistence.save(config.seed, world, game, cameraController); },
   onSelect: index => game.select(index),
+  onAssign: key => game.assign(key),
 });
 
 function restoreLife(life) {
@@ -103,7 +106,10 @@ function updateStats() {
 
 function handleActions(actions) {
   for (const action of actions) {
-    if (action === 'dig') game.dig(target);
+    if (action === 'blocks') hud.togglePicker();
+    else if (action === 'close') hud.closePicker();
+    else if (hud.pickerOpen) continue;                 // the book is open: taps go to it, not the planet
+    else if (action === 'dig') game.dig(target);
     else if (action === 'build') game.build(target);
     else if (action === 'eat') game.eatSelected();
     else if (action.select !== undefined) game.select(action.select);
@@ -117,8 +123,9 @@ function frame(now) {
 
   const snapshot = input.poll();
   const playing = game.started && game.vitals.alive;
-  if (playing) player.update(dt, snapshot, cameraController.yaw);
+  if (playing && !hud.pickerOpen) player.update(dt, snapshot, cameraController.yaw);
   cameraController.update(dt, snapshot);
+  renderer.shake(game.shake > 0 ? 0.35 : 0);
 
   // What are we looking at? Ray from the camera through the crosshair, starting at the player's head.
   if (playing) {

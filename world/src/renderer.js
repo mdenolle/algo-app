@@ -48,6 +48,8 @@ export class Renderer {
     this.plain = createBrickGeometry({ studded: false });
     // Slightly glossy ABS plastic. Colors come per instance.
     this.material = new THREE.MeshStandardMaterial({ roughness: 0.42, metalness: 0.02 });
+    // Glass: see-through bricks, studs and all.
+    this.glassMaterial = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.38, roughness: 0.1, metalness: 0.05, depthWrite: false });
     // Water: a translucent sheet at the top of the sea-level layer, seen from both sides.
     this.waterGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.5, 0);
     this.waterMaterial = new THREE.MeshStandardMaterial({ color: 0x078bc9, transparent: true, opacity: 0.72, roughness: 0.15, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false });
@@ -94,11 +96,12 @@ export class Renderer {
     const set = [];
     if (data.top.length) set.push(this.#instanced(this.studded, this.material, data.top, data.topColor));
     if (data.fill.length) set.push(this.#instanced(this.plain, this.material, data.fill, data.fillColor));
+    if (data.glass && data.glass.length) { const g = this.#instanced(this.studded, this.glassMaterial, data.glass, data.glassColor); g.renderOrder = 1; set.push(g); }
     if (data.water.length) { const w = this.#instanced(this.waterGeometry, this.waterMaterial, data.water, null); w.renderOrder = 2; set.push(w); }
     if (data.apples.length) set.push(this.#instanced(this.appleGeometry, this.appleMaterial, data.apples, null));
     set.forEach(mesh => this.chunkGroup.add(mesh));
     this.meshes.set(key, set);
-    this.blockCount += data.top.length / 16 + data.fill.length / 16;
+    this.blockCount += data.top.length / 16 + data.fill.length / 16 + (data.glass ? data.glass.length / 16 : 0);
   }
 
   /** Show the highlight box on one block (column-major matrix from blockMatrix), or hide it. */
@@ -120,7 +123,7 @@ export class Renderer {
     if (!set) return;
     for (const mesh of set) {
       this.chunkGroup.remove(mesh);
-      if (mesh.material === this.material) this.blockCount -= mesh.count;
+      if (mesh.material === this.material || mesh.material === this.glassMaterial) this.blockCount -= mesh.count;
       mesh.dispose();
     }
     this.meshes.delete(key);
@@ -128,6 +131,14 @@ export class Renderer {
 
   render() {
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Brief camera shake (explosions). Call with seconds remaining; 0 stops. */
+  shake(strength) {
+    if (strength <= 0) return;
+    this.camera.position.x += (Math.random() - 0.5) * strength;
+    this.camera.position.y += (Math.random() - 0.5) * strength;
+    this.camera.position.z += (Math.random() - 0.5) * strength;
   }
 
   get stats() {

@@ -4,7 +4,7 @@
 import { planetRadius } from './config.js';
 import { createTerrain } from './terrain.js';
 import { columnOf, columnDirection, chunkKey } from './planet.js';
-import { EditStore, columnKey, resolveColumn, hasApple, parseColumnKey } from './columns.js';
+import { EditStore, columnKey, resolveColumn, hasApple, parseColumnKey, columnSeed } from './columns.js';
 
 export class World {
   constructor(config, saved = null) {
@@ -27,11 +27,12 @@ export class World {
     const key = columnKey(face, i, j);
     const dir = columnDirection(face, i, j, this.config.faceResolution);
     const natural = this.terrain.sample(dir);
-    const resolved = resolveColumn(natural, this.edits.get(key), this.config.seaLevel);
+    const oreSeed = columnSeed(this.config.seed, face, i, j);
+    const resolved = resolveColumn(natural, this.edits.get(key), this.config.seaLevel, oreSeed);
     const solid = resolved.frozen ? this.config.seaLevel : resolved.h;
     const swim = resolved.water && !resolved.frozen;
     const apple = !resolved.water && !this.edits.get(key) && !this.picked.has(key) && hasApple(this.config.seed, face, i, j, natural);
-    return { face, i, j, key, dir, natural, resolved, solid, swim, apple };
+    return { face, i, j, key, dir, natural, resolved, solid, swim, apple, oreSeed };
   }
 
   /** Radial distance of the solid floor under a world-space point. */
@@ -44,7 +45,26 @@ export class World {
   waterRadius() { return this.radius + this.config.seaLevel; }
 
   dig(column) {
-    return this.edits.dig(column.key, column.natural, this.config.seaLevel);
+    return this.edits.dig(column.key, column.natural, this.config.seaLevel, 2, column.oreSeed);
+  }
+
+  /** Crater around a column: depth falls off with distance. Returns the columns changed. */
+  blast(centre, radius = 2.5, depth = 3) {
+    const changed = [];
+    const N = this.config.faceResolution;
+    const reach = Math.ceil(radius);
+    for (let di = -reach; di <= reach; di += 1) {
+      for (let dj = -reach; dj <= reach; dj += 1) {
+        const distance = Math.hypot(di, dj);
+        if (distance > radius) continue;
+        const i = centre.i + di, j = centre.j + dj;
+        if (i < 0 || j < 0 || i >= N || j >= N) continue;     // no cross-face craters for now
+        const column = this.columnAt(centre.face, i, j);
+        const layers = Math.max(1, Math.round(depth - distance));
+        if (this.edits.blast(column.key, column.natural, this.config.seaLevel, layers) > 0) changed.push(column);
+      }
+    }
+    return changed;
   }
 
   place(column, material) {

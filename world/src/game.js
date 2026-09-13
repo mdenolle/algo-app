@@ -1,35 +1,43 @@
-// Game: survival state (vitals, inventory, stats), the hotbar, and the actions
-// that change the planet. Pure rules live in rules.js; this wires them to the
-// world, the player and the renderer.
+// Game: survival state (vitals, inventory, stats), the hotbar and block picker,
+// TNT fuses, and the actions that change the planet. Pure rules live in
+// rules.js; this wires them to the world, the player and the renderer.
 
 import { MATERIAL, MATERIALS } from './materials.js';
 import { RULES, freshVitals, stepVitals, applyFallDamage, eat } from './rules.js';
 
-export const HOTBAR = [
-  { key: 'grass', label: 'Grass', material: MATERIAL.grass },
-  { key: 'dirt', label: 'Dirt', material: MATERIAL.dirt },
-  { key: 'stone', label: 'Stone', material: MATERIAL.stone },
-  { key: 'sand', label: 'Sand', material: MATERIAL.sand },
-  { key: 'snow', label: 'Snow', material: MATERIAL.snow },
-  { key: 'ice', label: 'Ice', material: MATERIAL.ice },
-  { key: 'wood', label: 'Wood', material: MATERIAL.wood },
+/** Everything that can sit in a hotbar slot: every block material, plus food. */
+export const BLOCKS = [
+  ...MATERIALS.filter(m => m.key !== 'water').map(m => ({ key: m.key, label: m.name, material: m.id, hex: `#${m.hex}`, ore: Boolean(m.ore), translucent: Boolean(m.translucent) })),
   { key: 'apple', label: 'Apple', food: true, emoji: '🍎' },
 ];
+export const BLOCK_BY_KEY = new Map(BLOCKS.map(block => [block.key, block]));
+export const HOTBAR_SIZE = 9;
+export const DEFAULT_HOTBAR = ['grass', 'dirt', 'stone', 'planks', 'glass', 'bricks', 'tnt', 'wood', 'apple'];
 
-const materialToKey = new Map(HOTBAR.filter(s => s.material !== undefined).map(s => [s.material, s.key]));
-materialToKey.set(MATERIAL.darkstone, 'stone');
+const materialToKey = new Map(BLOCKS.filter(b => b.material !== undefined).map(b => [b.material, b.key]));
 
 export function freshLife() {
-  const inventory = Object.fromEntries(HOTBAR.map(slot => [slot.key, 0]));
-  // Camp kit: enough to build a shelter or a bridge before you have dug anything.
-  inventory.dirt = 10;
-  inventory.wood = 6;
-  inventory.apple = 2;
+  const inventory = Object.fromEntries(BLOCKS.map(block => [block.key, 0]));
+  // Builder's chest: enough to make a house, a bridge and a little mischief before you have dug anything.
+  Object.assign(inventory, { dirt: 10, wood: 6, planks: 16, log: 8, leaves: 8, glass: 12, bricks: 12, pink: 8, purple: 8, glowstone: 4, tnt: 3, apple: 2 });
   return {
     vitals: freshVitals(),
     inventory,
+    hotbar: [...DEFAULT_HOTBAR],
     selected: 0,
-    stats: { dug: 0, built: 0, eaten: 0, applesFound: 0, startedAt: Date.now(), survived: 0 },
+    stats: { dug: 0, built: 0, eaten: 0, applesFound: 0, oresFound: 0, explosions: 0, startedAt: Date.now(), survived: 0 },
+  };
+}
+
+/** Old saves may lack fields added later. */
+export function upgradeLife(life) {
+  const fresh = freshLife();
+  return {
+    ...fresh,
+    ...life,
+    inventory: { ...fresh.inventory, ...life.inventory },
+    hotbar: Array.isArray(life.hotbar) && life.hotbar.length === HOTBAR_SIZE ? life.hotbar : fresh.hotbar,
+    stats: { ...fresh.stats, ...life.stats },
   };
 }
 
@@ -39,14 +47,17 @@ export class Game {
     this.player = player;
     this.chunks = chunks;
     this.renderer = renderer;
-    this.life = life ?? freshLife();
+    this.life = life ? upgradeLife(life) : freshLife();
     this.messages = [];     // { text, until }
     this.started = false;
+    this.fuses = [];        // { column, until }
+    this.shake = 0;         // seconds of camera shake left
+    this.pickerOpen = false;
   }
 
   get vitals() { return this.life.vitals; }
   get inventory() { return this.life.inventory; }
-  get selectedSlot() { return HOTBAR[this.life.selected]; }
+  get selectedSlot() { return BLOCK_BY_KEY.get(this.life.hotbar[this.life.selected]); }
 
   say(text, seconds = 2.2) {
     this.messages.push({ text, until: performance.now() + seconds * 1000 });
@@ -54,7 +65,13 @@ export class Game {
   }
 
   select(index) {
-    this.life.selected = ((index % HOTBAR.length) + HOTBAR.length) % HOTBAR.length;
+    this.life.selected = ((index % HOTBAR_SIZE) + HOTBAR_SIZE) % HOTBAR_SIZE;
+  }
+
+  /** Put a block type into the selected hotbar slot (from the picker). */
+  assign(key) {
+    if (!BLOCK_BY_KEY.has(key)) return;
+    this.life.hotbar[this.life.selected] = key;
   }
 
   /** Per-frame survival tick. */
@@ -85,16 +102,28 @@ export class Game {
       this.say('🍎 Picked an apple');
       this.chunks.rebuild(this.world.chunksTouching(here));
     }
+
+    // TNT fuses.
+    if (this.fuses.length) {
+      const now = performance.now();
+      const ready = this.fuses.filter(f => f.until <= now);
+      this.fuses = this.fuses.filter(f => f.until > now);
+      for (const fuse of ready) this.explode(fuse.column);
+    }
+    this.shake = Math.max(0, this.shake - dt);
   }
 
   dig(target) {
     if (!this.vitals.alive) return false;
     if (!target) { this.say('Aim the crosshair at a block close to you', 2); return false; }
     const column = target.dig;
+    const surface = this.world.column(column.dir).resolved.surface;
+    if (surface === MATERIAL.tnt) return this.light(column);
     const removed = this.world.dig(column);
     if (removed === null) { this.say('Bedrock: too deep to dig', 1.6); return false; }
     const key = materialToKey.get(removed);
     if (key) this.inventory[key] += 1;
+    if (MATERIALS[removed].ore) { this.life.stats.oresFound += 1; this.say(`✨ ${MATERIALS[removed].name}!`, 1.6); }
     this.life.stats.dug += 1;
     this.chunks.rebuild(this.world.chunksTouching(column));
     return true;
@@ -105,7 +134,7 @@ export class Game {
     const slot = this.selectedSlot;
     if (slot.food) return this.eatSelected();
     if (!target) { this.say('Aim the crosshair at the ground to build there', 2); return false; }
-    if (this.inventory[slot.key] <= 0) { this.say(`No ${slot.label.toLowerCase()} left. Dig some, or pick another block (1–8)`, 2.4); return false; }
+    if (this.inventory[slot.key] <= 0) { this.say(`No ${slot.label.toLowerCase()} left. Dig some, or pick another block (1–9)`, 2.4); return false; }
     const column = target.place;
     const me = this.world.column(this.player.up);
     const underMe = column.key === me.key && this.world.radius + column.solid + 1 > this.player.position.length() + 0.01;
@@ -116,7 +145,45 @@ export class Game {
     // Building under your own feet lifts you onto the new block: the easy way up a tower.
     if (underMe) { this.player.position.setLength(this.world.radius + height); this.player.velocityUp = 0; }
     this.chunks.rebuild(this.world.chunksTouching(column));
+    if (slot.key === 'tnt') this.say('TNT placed. Hit it to light the fuse, then RUN!', 2.5);
     return true;
+  }
+
+  /** Hitting TNT lights it: 3 seconds, then a crater. */
+  light(column) {
+    if (this.fuses.some(f => f.column.key === column.key)) return false;
+    this.fuses.push({ column, until: performance.now() + 3000 });
+    this.say('💣 Fuse lit! RUN!', 2.5);
+    return true;
+  }
+
+  explode(column) {
+    const changed = this.world.blast(column, 2.5, 3);
+    const keys = new Set();
+    for (const c of changed) for (const key of this.world.chunksTouching(c)) keys.add(key);
+    this.chunks.rebuild([...keys]);
+    this.life.stats.explosions += 1;
+    this.shake = 0.5;
+    // Blast damage: up to 4 hearts within 2 blocks, nothing beyond 6.
+    const distance = this.player.position.distanceTo(this.#columnPosition(column));
+    const hurt = distance < 6 ? 4 * Math.max(0, 1 - Math.max(0, distance - 2) / 4) : 0;
+    if (hurt > 0 && this.vitals.alive) {
+      const health = Math.max(0, this.vitals.health - hurt);
+      this.life.vitals = { ...this.vitals, health, alive: health > 0, causeOfDeath: health > 0 ? null : 'exploded' };
+      this.say(hurt >= 3.9 ? '💥 BOOM! Too close!' : '💥 BOOM!', 2);
+    } else {
+      this.say('💥 BOOM!', 2);
+    }
+    // A chain reaction: other TNT in the crater goes off too.
+    for (const c of changed) {
+      if (c.key === column.key) continue;
+      if (this.world.column(c.dir).resolved.surface === MATERIAL.tnt) this.light(c);
+    }
+  }
+
+  #columnPosition(column) {
+    const r = this.world.radius + column.solid;
+    return this.player.position.clone().set(column.dir[0] * r, column.dir[1] * r, column.dir[2] * r);
   }
 
   eatSelected() {
@@ -133,6 +200,7 @@ export class Game {
     this.life = freshLife();
     this.player.respawn(spawnDirection);
     this.messages = [];
+    this.fuses = [];
   }
 
   toJSON() {
@@ -143,11 +211,11 @@ export class Game {
 
 export const RULE_SUMMARY = [
   `One life. ${RULES.maxHealth} hearts, no respawn.`,
-  `Water is deep: you sink. ${RULES.maxAir} seconds of air, then you drown. Hold JUMP to swim up.`,
+  `Water is deep: you sink. ${RULES.maxAir} seconds of air, then you drown. Hold JUMP to swim up, press it at the surface to hop out.`,
   'You get hungry. Apples grow on the grass; walk over them, then eat (F or EAT).',
-  'Falling more than about five blocks hurts.',
-  'Dig: click, E or DIG (tap on a phone). Build: right-click, R or BUILD (hold your finger). Pick the block with 1–8.',
-  'Build on the block you stand on and you climb up with it. Dig under water too; ice gives ice bricks.',
+  'Falling more than about five blocks hurts. TNT hurts more.',
+  'Dig: click, E or DIG (tap on a phone). Build: right-click, R or BUILD (hold your finger). Pick blocks with 1–9 or the block book (B).',
+  'Ores hide deep in the stone: coal, iron, gold, redstone, lapis, emerald, diamond, obsidian. Dig down to find them.',
 ];
 
 export { RULES, MATERIALS };
