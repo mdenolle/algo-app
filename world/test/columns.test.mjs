@@ -56,20 +56,61 @@ test('place stacks a block and digging it back leaves the store empty', () => {
   assert.equal(col.top, MATERIAL.grass);
 });
 
-test('digging a beach column to sea level floods it; water cannot be dug; ice is walkable', () => {
+test('digging a beach column to sea level floods it, then you dig the sea floor: sand, then stone', () => {
   const beach = { height: cfg.seaLevel + 1, material: MATERIAL.sand, water: false };
   const edits = new EditStore();
   assert.equal(edits.dig('k', beach, cfg.seaLevel), MATERIAL.sand);
-  const col = resolveColumn(beach, edits.get('k'), cfg.seaLevel);
+  let col = resolveColumn(beach, edits.get('k'), cfg.seaLevel);
   assert.equal(col.water, true);
   assert.equal(col.surface, MATERIAL.water);
   assert.equal(col.top, MATERIAL.sand, 'the sand floor of the flooded hole');
-  assert.equal(edits.dig('k', beach, cfg.seaLevel), null);
+  assert.equal(edits.dig('k', beach, cfg.seaLevel), MATERIAL.sand, 'digging under water takes the floor');
+  assert.equal(edits.dig('k', beach, cfg.seaLevel), MATERIAL.sand);
+  assert.equal(edits.dig('k', beach, cfg.seaLevel), MATERIAL.sand);
+  assert.equal(edits.dig('k', beach, cfg.seaLevel), MATERIAL.stone);
+  col = resolveColumn(beach, edits.get('k'), cfg.seaLevel);
+  assert.equal(col.h, cfg.seaLevel - 4);
+  assert.equal(col.water, true);
+});
+
+test('the sea floor is diggable down to bedrock, never through it', () => {
+  const sea = { height: 5, material: MATERIAL.water, water: true };
+  const edits = new EditStore();
+  assert.equal(edits.dig('s', sea, cfg.seaLevel), MATERIAL.sand);
+  assert.equal(edits.dig('s', sea, cfg.seaLevel), MATERIAL.stone);
+  assert.equal(edits.dig('s', sea, cfg.seaLevel), MATERIAL.stone);
+  assert.equal(resolveColumn(sea, edits.get('s'), cfg.seaLevel).h, 2);
+  assert.equal(edits.dig('s', sea, cfg.seaLevel), null, 'bedrock');
+});
+
+test('ice: walkable, frozen down to the sea floor, dig it for an ice brick and an open hole, build on top of it', () => {
   const ice = { height: cfg.seaLevel - 3, material: MATERIAL.ice, water: true };
   const frozen = resolveColumn(ice, undefined, cfg.seaLevel);
   assert.equal(frozen.frozen, true);
   assert.equal(frozen.walk, cfg.seaLevel);
   assert.equal(frozen.surface, MATERIAL.ice);
+  assert.equal(frozen.layer(cfg.seaLevel - 1), MATERIAL.ice);
+  assert.equal(frozen.layer(cfg.seaLevel - 3), MATERIAL.ice, 'frozen column above the floor');
+  assert.equal(frozen.layer(cfg.seaLevel - 4), MATERIAL.sand, 'sea floor');
+  assert.equal(frozen.layer(cfg.seaLevel), null);
+
+  const edits = new EditStore();
+  assert.equal(edits.dig('i', ice, cfg.seaLevel), MATERIAL.ice);
+  const hole = resolveColumn(ice, edits.get('i'), cfg.seaLevel);
+  assert.equal(hole.frozen, false);
+  assert.equal(hole.water, true);
+  assert.equal(hole.surface, MATERIAL.water);
+  assert.equal(edits.size, 1, 'a thawed column is a real difference and stays stored');
+  assert.equal(edits.dig('i', ice, cfg.seaLevel), MATERIAL.sand, 'then the sea floor');
+
+  const edits2 = new EditStore();
+  assert.equal(edits2.place('j', ice, cfg.seaLevel, MATERIAL.wood, cfg.maxHeight), cfg.seaLevel + 1);
+  const cabin = resolveColumn(ice, edits2.get('j'), cfg.seaLevel);
+  assert.equal(cabin.surface, MATERIAL.wood);
+  assert.equal(cabin.layer(cfg.seaLevel - 1), MATERIAL.ice, 'the ice is still under the wood');
+  assert.equal(edits2.dig('j', ice, cfg.seaLevel), MATERIAL.wood);
+  assert.equal(edits2.size, 0, 'back to natural ice');
+  assert.equal(resolveColumn(ice, edits2.get('j'), cfg.seaLevel).frozen, true);
 });
 
 test('placing on water makes a block standing at the surface', () => {
@@ -84,12 +125,15 @@ test('placing on water makes a block standing at the surface', () => {
   assert.equal(col.surface, MATERIAL.wood);
 });
 
-test('edits survive a JSON round trip', () => {
+test('edits survive a JSON round trip, thawed flag included', () => {
   const { n, key } = grassColumn();
   const edits = new EditStore();
   edits.place(key, n, cfg.seaLevel, MATERIAL.snow, cfg.maxHeight);
+  const ice = { height: cfg.seaLevel - 3, material: MATERIAL.ice, water: true };
+  edits.dig('ice', ice, cfg.seaLevel);
   const copy = EditStore.fromJSON(JSON.parse(JSON.stringify(edits)));
   assert.deepEqual(copy.get(key), edits.get(key));
+  assert.equal(copy.get('ice').thawed, true);
 });
 
 test('blockMatrix puts the block centre at radius R + k + 0.5 with unit height', () => {

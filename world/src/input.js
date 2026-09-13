@@ -31,7 +31,15 @@ export class Input {
     canvas.addEventListener('pointerdown', e => {
       canvas.setPointerCapture(e.pointerId);
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (this.pointers.size === 1) this.press = { id: e.pointerId, x: e.clientX, y: e.clientY, time: performance.now(), button: e.button, touch: e.pointerType === 'touch', moved: false };
+      if (this.pointers.size === 1) {
+        this.press = { id: e.pointerId, x: e.clientX, y: e.clientY, time: performance.now(), button: e.button, touch: e.pointerType === 'touch', moved: false, done: false };
+        // Touch: a held finger builds after 450 ms, on a timer, because Android
+        // cancels the pointer for its own long-press gesture before pointerup.
+        if (this.press.touch) {
+          const press = this.press;
+          setTimeout(() => { if (this.press === press && !press.moved && !press.done) { press.done = true; this.actions.push('build'); } }, 450);
+        }
+      }
     });
     canvas.addEventListener('pointermove', e => {
       const p = this.pointers.get(e.pointerId);
@@ -56,9 +64,8 @@ export class Input {
       const press = this.press;
       if (press && e.pointerId === press.id) {
         this.press = null;
-        const held = performance.now() - press.time;
-        if (!press.moved && e.type === 'pointerup') {
-          if (press.touch) this.actions.push(held > 450 ? 'build' : 'dig');
+        if (!press.moved && !press.done && e.type === 'pointerup') {
+          if (press.touch) this.actions.push('dig');
           else this.actions.push(press.button === 2 ? 'build' : 'dig');
         }
       }

@@ -21,6 +21,9 @@ materialToKey.set(MATERIAL.darkstone, 'stone');
 
 export function freshLife() {
   const inventory = Object.fromEntries(HOTBAR.map(slot => [slot.key, 0]));
+  // Camp kit: enough to build a shelter or a bridge before you have dug anything.
+  inventory.dirt = 10;
+  inventory.wood = 6;
   inventory.apple = 2;
   return {
     vitals: freshVitals(),
@@ -82,10 +85,10 @@ export class Game {
 
   dig(target) {
     if (!this.vitals.alive) return false;
-    if (!target) { this.say('Aim the crosshair at a block close to you', 1.4); return false; }
+    if (!target) { this.say('Aim the crosshair at a block close to you', 2); return false; }
     const column = target.dig;
     const removed = this.world.dig(column);
-    if (removed === null) { this.say(column.resolved.water ? 'You cannot dig water' : 'Bedrock: too deep to dig', 1.2); return false; }
+    if (removed === null) { this.say('Bedrock: too deep to dig', 1.6); return false; }
     const key = materialToKey.get(removed);
     if (key) this.inventory[key] += 1;
     this.life.stats.dug += 1;
@@ -97,13 +100,13 @@ export class Game {
     if (!this.vitals.alive) return false;
     const slot = this.selectedSlot;
     if (slot.food) return this.eatSelected();
-    if (!target) { this.say('Aim the crosshair at the ground to build there', 1.4); return false; }
-    if (this.inventory[slot.key] <= 0) { this.say(`No ${slot.label.toLowerCase()} left: dig some first`, 1.4); return false; }
+    if (!target) { this.say('Aim the crosshair at the ground to build there', 2); return false; }
+    if (this.inventory[slot.key] <= 0) { this.say(`No ${slot.label.toLowerCase()} left. Dig some, or pick another block (1–8)`, 2.4); return false; }
     const column = target.place;
     // Do not build inside yourself.
     const me = this.world.column(this.player.up);
     if (column.key === me.key && this.world.radius + column.solid + 1 > this.player.position.length() + 0.01) {
-      this.say('You are standing there!', 1); return false;
+      this.say('You are standing there! Step aside first', 1.6); return false;
     }
     const height = this.world.place(column, slot.material);
     if (height === null) { this.say('Too high to build', 1.2); return false; }
@@ -140,7 +143,8 @@ export const RULE_SUMMARY = [
   `Water is deep: you sink. ${RULES.maxAir} seconds of air, then you drown. Hold JUMP to swim up.`,
   'You get hungry. Apples grow on the grass; walk over them, then eat (F or EAT).',
   'Falling more than about five blocks hurts.',
-  'Dig: click or DIG. Build: right-click or BUILD, with the block you picked (1–8).',
+  'Dig: click, E or DIG (tap on a phone). Build: right-click, R or BUILD (hold your finger). Pick the block with 1–8.',
+  'You can dig under water too. Ice on the frozen sea gives ice bricks.',
 ];
 
 export { RULES, MATERIALS };

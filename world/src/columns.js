@@ -16,14 +16,18 @@ export const columnKey = (face, i, j) => `${face}:${i}:${j}`;
 export const parseColumnKey = key => { const [face, i, j] = key.split(':').map(Number); return { face, i, j }; };
 
 /** Material of the block at layer k in a natural (unedited) column. */
-export function naturalLayerMaterial(natural, k) {
+export function naturalLayerMaterial(natural, k, seaLevel = Infinity) {
   const top = natural.height - 1;
+  if (natural.water) {
+    if (natural.material === MATERIAL.ice && k > top && k < seaLevel) return MATERIAL.ice;   // frozen sea
+    if (k > top) return null;
+    return k === top ? MATERIAL.sand : MATERIAL.stone;                                        // sea floor
+  }
   if (k > top) return null;
-  if (natural.water) return k === top ? MATERIAL.sand : MATERIAL.stone;          // sea floor
   const below = top - k;
   const surface = natural.material;
   if (k === top) return surface;
-  if (surface === MATERIAL.sand) return MATERIAL.sand;
+  if (surface === MATERIAL.sand) return below <= 3 ? MATERIAL.sand : MATERIAL.stone;
   if (surface === MATERIAL.snow) return below <= 2 ? MATERIAL.snow : MATERIAL.stone;
   if (surface === MATERIAL.stone || surface === MATERIAL.darkstone) return MATERIAL.stone;
   return below <= 3 ? MATERIAL.dirt : MATERIAL.stone;
@@ -37,8 +41,8 @@ export function naturalLayerMaterial(natural, k) {
 export function resolveColumn(natural, edit, seaLevel) {
   const h = edit ? edit.h : natural.height;
   const water = h <= seaLevel;
-  const frozen = water && natural.material === MATERIAL.ice && !edit;
-  const layer = k => (edit && edit.placed[k] !== undefined ? edit.placed[k] : naturalLayerMaterial(natural, k));
+  const frozen = water && natural.material === MATERIAL.ice && !(edit && edit.thawed);
+  const layer = k => (edit && edit.placed[k] !== undefined ? edit.placed[k] : naturalLayerMaterial(natural, k, seaLevel));
   const top = layer(h - 1);                                   // highest solid block
   const surface = water ? (frozen ? MATERIAL.ice : MATERIAL.water) : top;   // what you see from above
   return { h, water, frozen, top, surface, layer, walk: frozen ? seaLevel : h, natural };
@@ -73,39 +77,52 @@ export function hasApple(seed, face, i, j, natural) {
 /** Player edits to the planet, keyed by column. Serializable; sent whole to workers. */
 export class EditStore {
   constructor(entries = []) {
-    this.map = new Map(entries.map(([key, value]) => [key, { h: value.h, placed: { ...value.placed } }]));
+    this.map = new Map(entries.map(([key, value]) => [key, { h: value.h, placed: { ...value.placed }, ...(value.thawed ? { thawed: true } : {}) }]));
   }
 
   get(key) { return this.map.get(key); }
   get size() { return this.map.size; }
 
-  /** Remove the top block. Returns the material removed, or null if nothing can be dug. */
+  /**
+   * Remove the top solid block: the ice sheet on a frozen sea (leaves open water),
+   * else the top of the column, which under water is the sea floor. Returns the
+   * material removed, or null at bedrock.
+   */
   dig(key, natural, seaLevel, minHeight = 2) {
     const current = resolveColumn(natural, this.map.get(key), seaLevel);
-    if (current.water) return null;                    // water and ice are not diggable
+    const entry = this.map.get(key) ?? { h: natural.height, placed: {} };
+    if (current.frozen) {
+      entry.thawed = true;
+      entry.h = natural.height;                        // open water down to the sea floor
+      this.#store(key, entry, natural, seaLevel);
+      return MATERIAL.ice;
+    }
     if (current.h <= minHeight) return null;           // keep a floor under the planet
     const removed = current.top;
-    const entry = this.map.get(key) ?? { h: natural.height, placed: {} };
     delete entry.placed[current.h - 1];
     entry.h = current.h - 1;
-    this.#store(key, entry, natural);
+    this.#store(key, entry, natural, seaLevel);
     return removed;
   }
 
-  /** Put `material` on top. Returns the new height, or null if too tall. */
+  /** Put `material` on top (on the ice if the sea is frozen). Returns the new height, or null if too tall. */
   place(key, natural, seaLevel, material, maxHeight) {
     const current = resolveColumn(natural, this.map.get(key), seaLevel);
-    if (current.h >= maxHeight) return null;
+    const base = current.frozen ? seaLevel : current.h;
+    if (base >= maxHeight) return null;
     const entry = this.map.get(key) ?? { h: natural.height, placed: {} };
-    entry.placed[current.h] = material;
-    entry.h = current.h + 1;
-    this.#store(key, entry, natural);
+    entry.placed[base] = material;
+    entry.h = base + 1;
+    this.#store(key, entry, natural, seaLevel);
     return entry.h;
   }
 
-  #store(key, entry, natural) {
+  #store(key, entry, natural, seaLevel) {
+    const placedCount = Object.keys(entry.placed).length;
+    // On a frozen sea, taking back everything you built leaves the natural ice sheet.
+    if (natural.water && natural.material === MATERIAL.ice && !entry.thawed && placedCount === 0 && entry.h > natural.height && entry.h <= seaLevel) entry.h = natural.height;
     // Back to natural? Drop the entry so the store only holds real differences.
-    if (entry.h === natural.height && Object.keys(entry.placed).length === 0) this.map.delete(key);
+    if (entry.h === natural.height && placedCount === 0 && !entry.thawed) this.map.delete(key);
     else this.map.set(key, entry);
   }
 

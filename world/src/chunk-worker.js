@@ -81,7 +81,7 @@ export function buildChunk(face, cx, cy, config, terrain, edits, picked) {
       }
 
       push(top, solid - 1, resolved.frozen ? MATERIAL.ice : resolved.top);
-      for (let k = solid - 2; k >= lowest; k -= 1) push(fill, k, resolved.frozen ? MATERIAL.ice : resolved.layer(k));
+      for (let k = solid - 2; k >= lowest; k -= 1) push(fill, k, resolved.layer(k));
       if (resolved.water && !resolved.frozen) push(water, seaLevel - 1, MATERIAL.water);
       if (!resolved.water && !edit && !picked.has(key) && hasApple(config.seed, face, ci, cj, natural)) push(apples, solid - 0.2, MATERIAL.water);
     }

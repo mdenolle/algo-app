@@ -16,9 +16,10 @@ export class PlayerController {
     this.speed = 7;
     this.runMultiplier = 1.7;
     this.swimMultiplier = 0.55;
-    this.jumpSpeed = 9.5;
+    this.jumpSpeed = 10.2;      // clears a 2-block ledge, so a 2-deep hole is not a trap
     this.gravity = 26;
     this.stepHeight = 1.05;     // can step up one block, not two
+    this.climbOutHeight = 2.05; // from the water you can haul yourself up a 2-block shore
 
     this.position = new THREE.Vector3();
     this.up = new THREE.Vector3();
@@ -86,7 +87,7 @@ export class PlayerController {
     if (this.moving) {
       trial.copy(this.position).addScaledVector(move, speed * dt);
       const there = this.world.column(trial.clone().normalize());
-      if (R + there.solid - r <= this.stepHeight) {
+      if (R + there.solid - r <= (inWater ? this.climbOutHeight : this.stepHeight)) {
         this.position.copy(trial);
         this.facing.copy(move).normalize();
         column = there;
