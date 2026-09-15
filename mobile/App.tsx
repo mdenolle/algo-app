@@ -7,6 +7,7 @@ import { analyzeLegoPhoto, demoPieces, visionProvider, type DetectedPiece, type 
 import { catalog, describePiece, displayHex, getPart } from './src/catalog';
 import { isVoiceEnabled, say, sayBilingual, setVoiceEnabled } from './src/voice';
 import { LINES } from './src/voice/lines';
+import { registerRecordedVoice } from './src/voice/player';
 import { worldUrl } from './src/world';
 
 type Screen = 'home' | 'scan' | 'ideas' | 'preview' | 'builder' | 'creator' | 'complete' | 'book' | 'world';
@@ -122,7 +123,7 @@ export default function App() {
   const [detectedPieces,setDetectedPieces]=useState(inventory);
   const [scanResult,setScanResult]=useState<VisionResult|null>(null);
   const [voiceOn,setVoiceOn]=useState(isVoiceEnabled());
-  useEffect(()=>{say(LINES.greeting,{lineId:'greeting'})},[]);
+  useEffect(()=>{registerRecordedVoice();say(LINES.greeting,{lineId:'greeting'})},[]);
   function toggleVoice(){const next=!voiceOn;setVoiceEnabled(next);setVoiceOn(next);if(next)say(LINES.greeting,{lineId:'greeting'})}
   const placed=board.filter(Boolean).length;
   const bookPageTotal=build.steps.length+3;

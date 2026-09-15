@@ -26,6 +26,12 @@
           "photosPermission": "Allow Algo to choose a photo of your building pieces.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false
+        }
       ]
     ],
     "web": {

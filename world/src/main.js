@@ -16,6 +16,7 @@ import { Hud } from './hud.js';
 import { RULES } from './rules.js';
 import { findTarget, highlightMatrix, targetInFront } from './interact.js';
 import * as persistence from './persistence.js';
+import { say } from './voice.js';
 import { chunkOfDirection, chunkKey, latLon, normalize } from './planet.js';
 import { MATERIALS } from './materials.js';
 
@@ -57,7 +58,7 @@ const input = new Input(canvas, {
 });
 const game = new Game(world, player, chunks, renderer, saved?.life ? restoreLife(saved.life) : null);
 const hud = new Hud(document, {
-  onPlay: () => { game.started = true; hud.hideOverlays(); },
+  onPlay: () => { game.started = true; hud.hideOverlays(); say('Welcome to Algo World! Let’s explore!', 'world-welcome'); },
   onRetry: () => { game.newLife(world.terrain.findSpawn()); game.started = true; cameraController.initialised = false; hud.hideOverlays(); persistence.save(config.seed, world, game, cameraController); },
   onSelect: index => game.select(index),
   onAssign: key => game.assign(key),
@@ -143,6 +144,7 @@ function frame(now) {
   game.tick(dt, snapshot);
   if (wasAlive && !game.vitals.alive) {
     hud.showGameOver(game.vitals, game.life.stats);
+    say('Oh no! Let’s try again!', 'world-gameover');
     persistence.save(config.seed, world, game, cameraController);   // life is null now, planet kept
   }
 

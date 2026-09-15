@@ -4,6 +4,7 @@
 
 import { MATERIAL, MATERIALS } from './materials.js';
 import { RULES, freshVitals, stepVitals, applyFallDamage, eat } from './rules.js';
+import { say, hasClip } from './voice.js';
 
 /** Everything that can sit in a hotbar slot: every block material, plus food. */
 export const BLOCKS = [
@@ -100,6 +101,7 @@ export class Game {
       this.inventory.apple += 1;
       this.life.stats.applesFound += 1;
       this.say('🍎 Picked an apple');
+      if (hasClip('world-apple')) say('Yum, an apple!', 'world-apple');
       this.chunks.rebuild(this.world.chunksTouching(here));
     }
 

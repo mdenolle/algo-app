@@ -85,9 +85,20 @@ function showScreen(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function say(text) {
-  if (!soundOn || !('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
+// Algo's voice: a recording of Alex when one exists for the line (voice/clips + npm run voice),
+// otherwise the browser's text-to-speech.
+const voiceClips = window.ALGO_VOICE_CLIPS || {};
+let clipAudio = null;
+function say(text, lineId) {
+  if (!soundOn) return;
+  if (clipAudio) { clipAudio.pause(); clipAudio = null; }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  if (lineId && voiceClips[lineId]) {
+    clipAudio = new Audio(voiceClips[lineId]);
+    clipAudio.play().catch(() => {});
+    return;
+  }
+  if (!('speechSynthesis' in window)) return;
   const voice = new SpeechSynthesisUtterance(text);
   voice.rate = 1.02;
   voice.pitch = 1.08;
@@ -101,6 +112,8 @@ function showToast(message) {
   showToast.timer = setTimeout(() => toast.classList.remove('show'), 2400);
 }
 
+document.addEventListener('pointerdown', () => say('Hi! I’m Algo. Let’s build something amazing!', 'greeting'), { once: true });
+
 document.querySelectorAll('[data-go]').forEach(button => {
   button.addEventListener('click', () => showScreen(button.dataset.go));
 });
@@ -110,13 +123,13 @@ document.querySelector('#sound-toggle').addEventListener('click', event => {
   event.currentTarget.firstElementChild.textContent = soundOn ? '🔊' : '🔇';
   event.currentTarget.title = soundOn ? 'Voice on' : 'Voice off';
   event.currentTarget.setAttribute('aria-label', soundOn ? 'Turn voice off' : 'Turn voice on');
-  if (soundOn) say('Hi! I’m Algo. Let’s build something amazing!');
+  if (soundOn) say('Hi! I’m Algo. Let’s build something amazing!', 'greeting');
 });
 
 document.querySelector('#joke-answer').addEventListener('click', event => {
   document.querySelector('#joke-reveal').hidden = false;
   event.currentTarget.hidden = true;
-  say('Parce qu’elles s’emboîtent bien! That means: because they fit together well!');
+  say('Parce qu’elles s’emboîtent bien! That means: because they fit together well!', 'joke-answer-fr');
 });
 
 const photoInput = document.querySelector('#piece-photo');
@@ -157,7 +170,7 @@ scanButton.addEventListener('click', runScan);
 document.querySelector('#scan-demo').addEventListener('click', runScan);
 document.querySelector('#demo-inventory').addEventListener('click', () => {
   showScreen('ideas');
-  say('Here are three things we can build!');
+  say('Here are three things we can build!', 'ideas-demo');
 });
 
 document.querySelector('#new-ideas').addEventListener('click', () => {
@@ -169,7 +182,7 @@ document.querySelector('#new-ideas').addEventListener('click', () => {
   const choice = names[Math.floor(Math.random() * names.length)];
   document.querySelectorAll('.design-card .design-copy strong').forEach((name, index) => name.textContent = choice[index]);
   showToast('Algo made three fresh ideas!');
-  say('Voilà! Three new ideas!');
+  say('Voilà! Three new ideas!', 'new-ideas');
 });
 
 document.querySelectorAll('[data-build]').forEach(card => {
@@ -271,7 +284,7 @@ document.querySelector('#next-step').addEventListener('click', () => {
     document.querySelector('#book-title').textContent = `Alex’s ${build.title}`;
     document.querySelector('.cover-art').textContent = build.icon;
     showScreen('complete');
-    say('Bravo! Magnifique! You built it!');
+    say('Bravo! Magnifique! You built it!', 'complete');
   }
 });
 
@@ -360,7 +373,7 @@ document.querySelector('#finish-creation').addEventListener('click', () => {
   document.querySelector('#book-title').textContent = 'Alex’s Amazing Invention';
   document.querySelector('.cover-art').textContent = '✨';
   showScreen('complete');
-  say('Bravo! Your invention is one of a kind!');
+  say('Bravo! Your invention is one of a kind!', 'invention-complete');
 });
 
 document.querySelector('#creation-name').addEventListener('input', event => {
@@ -403,7 +416,7 @@ document.querySelector('#make-book').addEventListener('click', () => {
   bookPage = 0;
   renderBookPage();
   showScreen('book');
-  say('Your real instruction book is ready. Let’s turn the pages!');
+  say('Your real instruction book is ready. Let’s turn the pages!', 'book-ready');
 });
 document.querySelector('#previous-book-page').addEventListener('click', () => { if (bookPage > 0) { bookPage -= 1; renderBookPage(); } });
 document.querySelector('#next-book-page').addEventListener('click', () => {

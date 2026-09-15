@@ -7,7 +7,8 @@
     "catalog:build:offline": "node catalog/build-catalog.mjs --offline",
     "test": "node --test catalog/*.test.mjs world/test/*.test.mjs",
     "web": "node serve.mjs",
-    "world": "node serve.mjs"
+    "world": "node serve.mjs",
+    "voice": "node scripts/voice-clips.mjs"
   },
   "devDependencies": {
     "three": "^0.186.0"

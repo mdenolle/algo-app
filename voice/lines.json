@@ -1,0 +1,19 @@
+{
+  "$comment": "Algo's fixed lines: the recording script. One clip per id in voice/clips/<id>.(webm|m4a|mp3|wav). scripts/voice-clips.mjs generates mobile/src/voice/lines.ts and the clip maps from this file.",
+  "lines": [
+    { "id": "greeting", "text": "Hi! I’m Algo. Let’s build something amazing!", "where": "Algo app, home screen" },
+    { "id": "world-welcome", "text": "Welcome to Algo World! Let’s explore!", "where": "Algo World, when you press Play" },
+    { "id": "joke-question", "text": "Pourquoi les briques sont-elles heureuses?", "language": "fr-FR", "where": "Algo app, French joke" },
+    { "id": "joke-answer-fr", "text": "Parce qu’elles s’emboîtent bien!", "language": "fr-FR", "where": "Algo app, French joke" },
+    { "id": "joke-answer-en", "text": "That means: because they fit together well!", "where": "Algo app, French joke" },
+    { "id": "ideas-demo", "text": "Here are three things we can build!", "where": "Algo app, ideas screen" },
+    { "id": "new-ideas", "text": "Voilà! Three new ideas!", "where": "Algo app, ideas screen" },
+    { "id": "scan-looking", "text": "Let me look at your pieces.", "where": "Algo app, scanner" },
+    { "id": "complete", "text": "Bravo! Magnifique! You built it!", "where": "Algo app, finished build" },
+    { "id": "invention-complete", "text": "Bravo! Your invention is one of a kind!", "where": "Algo app, creator mode" },
+    { "id": "book-ready", "text": "Your real instruction book is ready. Let’s turn the pages!", "where": "Algo app, instruction book" },
+    { "id": "creator-welcome", "text": "I can’t wait to see what you invent!", "where": "Algo app, creator mode" },
+    { "id": "world-gameover", "text": "Oh no! Let’s try again!", "where": "Algo World, game over" },
+    { "id": "world-apple", "text": "Yum, an apple!", "where": "Algo World, picking an apple" }
+  ]
+}

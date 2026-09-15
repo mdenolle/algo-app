@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Record Algo's voice</title>
+  <link rel="icon" href="../icon.svg">
+  <style>
+    body { margin: 0; padding: 20px 16px 60px; background: #f7fbff; color: #14233a; font-family: 'Nunito', system-ui, sans-serif; }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { color: #0754a6; font-size: 26px; margin: 0 0 6px; }
+    .intro { font-weight: 700; color: #65758b; margin: 0 0 18px; line-height: 1.5; }
+    .line { background: white; border-radius: 18px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 6px 18px rgba(21,62,103,.1); }
+    .line.done { border: 2px solid #29ad66; }
+    .where { font-size: 11px; font-weight: 800; color: #65758b; text-transform: uppercase; letter-spacing: .6px; }
+    .text { font-size: 20px; font-weight: 900; margin: 4px 0 10px; }
+    .text small { display: block; font-size: 12px; color: #65758b; font-weight: 700; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    button { border: 0; border-radius: 12px; padding: 10px 14px; font: 900 14px 'Nunito', system-ui, sans-serif; cursor: pointer; }
+    .rec { background: #ec3d3d; color: white; box-shadow: 0 4px 0 #b52626; }
+    .rec.on { background: #14233a; animation: pulse 1s infinite; }
+    .play { background: #0877e8; color: white; box-shadow: 0 4px 0 #0754a6; }
+    .save { background: #ffd524; color: #3a3a27; box-shadow: 0 4px 0 #d9ad20; }
+    button:disabled { opacity: .4; cursor: default; box-shadow: none; }
+    .status { font-size: 13px; font-weight: 800; color: #177347; }
+    .count { font-size: 22px; font-weight: 900; color: #ec3d3d; min-width: 34px; }
+    @keyframes pulse { 50% { opacity: .6; } }
+    .steps { background: #e3f3ff; border-radius: 14px; padding: 12px 16px; font-weight: 700; font-size: 14px; line-height: 1.6; margin-bottom: 18px; }
+    .steps b { color: #0754a6; }
+    #saveall { display: none; margin: 8px 0 20px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>🎙️ Record Algo's voice</h1>
+  <p class="intro">Algo talks with a kid's voice: yours! Read each line out loud with a big smile, like you're talking to a friend.</p>
+  <div class="steps">
+    <b>1.</b> Press the red <b>Record</b> button, wait for "Go!", say the line, press <b>Stop</b>.<br>
+    <b>2.</b> Press <b>Play</b> to hear it. Not happy? Record again.<br>
+    <b>3.</b> Press <b>Save</b>: the file goes to your Downloads folder.<br>
+    <b>4.</b> A grown-up moves the files into <code>algo-app/voice/clips/</code> and runs <code>npm run voice</code>. Done!
+  </div>
+  <div id="lines"></div>
+</main>
+<script>
+const $lines = document.querySelector('#lines');
+let stream = null;
+
+async function mic() {
+  if (stream) return stream;
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  return stream;
+}
+
+// Prefer a format the Android app and browsers play; Safari records mp4 (m4a), Chrome webm.
+function pickType() {
+  for (const type of ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return '';
+}
+
+fetch('lines.json').then(r => r.json()).then(({ lines }) => {
+  for (const line of lines) $lines.append(card(line));
+});
+
+function card(line) {
+  const el = document.createElement('section');
+  el.className = 'line';
+  el.innerHTML = `<div class="where">${line.where ?? ''}${line.language === 'fr-FR' ? ' · in French' : ''}</div>
+    <div class="text">${line.text}<small>file: ${line.id}</small></div>
+    <div class="row"><button class="rec">● Record</button><span class="count"></span><button class="play" disabled>▶ Play</button><button class="save" disabled>💾 Save</button><span class="status"></span></div>`;
+  const rec = el.querySelector('.rec'), play = el.querySelector('.play'), save = el.querySelector('.save'), count = el.querySelector('.count'), status = el.querySelector('.status');
+  let recorder = null, chunks = [], blob = null, url = null, type = '';
+
+  rec.addEventListener('click', async () => {
+    if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+    try { await mic(); } catch { status.textContent = 'Please allow the microphone.'; return; }
+    for (const n of [3, 2, 1]) { count.textContent = n; await new Promise(r => setTimeout(r, 600)); }
+    count.textContent = 'Go!';
+    type = pickType();
+    recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+    chunks = [];
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = () => {
+      blob = new Blob(chunks, { type: recorder.mimeType });
+      if (url) URL.revokeObjectURL(url);
+      url = URL.createObjectURL(blob);
+      rec.textContent = '● Record again'; rec.classList.remove('on');
+      count.textContent = '';
+      play.disabled = false; save.disabled = false;
+      status.textContent = `${(blob.size / 1024).toFixed(0)} KB recorded`;
+      el.classList.add('done');
+    };
+    recorder.start();
+    rec.textContent = '■ Stop'; rec.classList.add('on');
+    status.textContent = 'Recording…';
+    setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 12000);
+  });
+  play.addEventListener('click', () => { new Audio(url).play(); });
+  save.addEventListener('click', () => {
+    const ext = recorder.mimeType.includes('mp4') ? 'm4a' : recorder.mimeType.includes('ogg') ? 'ogg' : 'webm';
+    const a = document.createElement('a');
+    a.href = url; a.download = `${line.id}.${ext}`; a.click();
+    status.textContent = `Saved ${line.id}.${ext} to Downloads`;
+  });
+  return el;
+}
+</script>
+</body>
+</html>
