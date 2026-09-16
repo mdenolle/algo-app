@@ -41,9 +41,12 @@ npm test                # catalog invariants
 procedural plains/ice/ocean terrain and instanced LEGO bricks, walked in third
 person. You dig and build with a hotbar, you have one life, water drowns you,
 you must eat apples, and the planet is saved in the browser. `npm install` once at the repo root (three.js), then
-`npm run web` and open `http://localhost:8000/world/`. In the Android app, tap
-**Explore Algo World** on the home screen: it opens the same page from the laptop's
-server in a WebView (Expo finds the laptop's IP by itself), with touch controls.
+`npm run web` and open `http://localhost:8000/world/`, or play the published version
+at **https://mdenolle.github.io/algo-app/world/** (every push to `main` republishes it,
+see `.github/workflows/pages.yml`). In the Android app, tap **Explore Algo World** on the
+home screen: it opens the published site in a WebView with touch controls, so the
+laptop can be off; set `EXPO_PUBLIC_WORLD_URL=lan` in `mobile/.env` to load it from the
+laptop while developing.
 See [world/README.md](world/README.md) for the architecture and what comes next.
 
 `npm run web` runs `serve.mjs`, a small Node server that sends no-cache headers so
