@@ -22,13 +22,25 @@ import { chunkOfDirection, chunkKey, latLon, normalize } from './planet.js';
 import { MATERIALS } from './materials.js';
 
 const params = new URLSearchParams(location.search);
+// The planet you last chose ("New planet") is remembered; ?seed= in the address wins.
+const SEED_KEY = 'algo-world:seed';
+const rememberedSeed = (() => { try { return localStorage.getItem(SEED_KEY); } catch { return null; } })();
 const config = withOverrides(DEFAULT_CONFIG, {
-  seed: params.get('seed'),
+  seed: params.get('seed') ?? rememberedSeed,
   renderDistance: params.get('distance'),
   faceResolution: params.get('size'),
 });
 if (params.has('reset')) persistence.clear(config.seed);
 const saved = persistence.load(config.seed);
+
+/** Reload this page keeping the display options (embedded, distance, size) but not seed/reset. */
+function reloadWorld(extra = {}) {
+  const next = new URLSearchParams();
+  for (const key of ['embedded', 'distance', 'size']) if (params.has(key)) next.set(key, params.get(key));
+  for (const [k, v] of Object.entries(extra)) next.set(k, v);
+  const query = next.toString();
+  location.href = location.pathname + (query ? `?${query}` : '');
+}
 
 const canvas = document.querySelector('#world');
 const hudEl = document.querySelector('#hud');
@@ -65,6 +77,13 @@ const hud = new Hud(document, {
   onRetry: () => { game.newLife(world.terrain.findSpawn()); mobs.clear(); game.started = true; cameraController.initialised = false; hud.hideOverlays(); persistence.save(config.seed, world, game, cameraController); },
   onSelect: index => game.select(index),
   onAssign: key => game.assign(key),
+  onRestart: () => { persistence.clear(config.seed); reloadWorld({ reset: 1 }); },
+  onNewPlanet: () => {
+    const seed = Math.floor(1000 + Math.random() * 9_000_000);
+    try { localStorage.setItem(SEED_KEY, String(seed)); } catch { /* private mode: the seed lasts for this visit */ }
+    reloadWorld({ seed });
+  },
+  seed: config.seed,
 });
 
 function restoreLife(life) {
@@ -128,9 +147,10 @@ function mobFor(action) {
 function handleActions(actions) {
   for (const raw of actions) {
     const action = typeof raw === 'string' ? { type: raw } : raw;
-    if (action.type === 'blocks') hud.togglePicker();
+    if (action.type === 'menu') { if (hud.pickerOpen) hud.closePicker(); else hud.toggleMenu(); }
+    else if (action.type === 'blocks') hud.togglePicker();
     else if (action.type === 'close') hud.closePicker();
-    else if (hud.pickerOpen) continue;                 // the book is open: taps go to it, not the planet
+    else if (hud.pickerOpen || hud.menuOpen) continue;   // a card is open: taps go to it, not the planet
     else if (action.type === 'dig') { const mob = mobFor(action); if (mob) game.hitMob(mobs, mob); else { const t = targetFor(action); if (t) game.dig(t); } }
     else if (action.type === 'build') { const t = targetFor(action); if (t) game.build(t); }
     else if (action.type === 'eat') game.eatSelected();
@@ -144,8 +164,9 @@ function frame(now) {
   fps = fps * 0.95 + (dt > 0 ? 1 / dt : fps) * 0.05;
 
   const snapshot = input.poll();
-  const playing = game.started && game.vitals.alive;
-  if (playing && !hud.pickerOpen) player.update(dt, snapshot, cameraController.yaw);
+  const paused = hud.pickerOpen || hud.menuOpen;
+  const playing = game.started && game.vitals.alive && !paused;
+  if (playing) player.update(dt, snapshot, cameraController.yaw);
   cameraController.update(dt, snapshot);
   renderer.shake(game.shake > 0 ? 0.35 : 0);
 
@@ -163,8 +184,8 @@ function frame(now) {
 
   const { day } = renderer.setTime(game.dayPhase, player.up);
   const wasAlive = game.vitals.alive;
-  game.tick(dt, snapshot);
-  if (playing && !hud.pickerOpen) mobs.update(dt, day);
+  if (!paused) game.tick(dt, snapshot);
+  if (playing) mobs.update(dt, day);
   if (wasAlive && !game.vitals.alive) {
     hud.showGameOver(game.vitals, game.life.stats);
     say('Oh no! Let’s try again!', 'world-gameover');

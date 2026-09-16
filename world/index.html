@@ -12,6 +12,14 @@
     #hud { position: fixed; top: 10px; left: 10px; padding: 6px 9px; border-radius: 10px; background: rgba(255,255,255,.6); font: 600 10px/1.5 ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; opacity: .85; }
     #title { position: fixed; top: 10px; right: 10px; padding: 6px 12px; border-radius: 12px; background: rgba(255,255,255,.8); font-weight: 900; font-size: 13px; text-decoration: none; color: #0754a6; }
     #clock { position: fixed; top: 44px; right: 10px; padding: 4px 10px; border-radius: 10px; background: rgba(255,255,255,.7); font: 800 12px ui-monospace, Menlo, monospace; }
+    #menu-button { position: fixed; top: 10px; left: 10px; padding: 6px 12px; border: 0; border-radius: 12px; background: rgba(255,255,255,.85); font-weight: 900; font-size: 12px; color: #0754a6; cursor: pointer; z-index: 2; display: none; }
+    @media (pointer: coarse) { #menu-button { display: block; } }
+    @media (max-height: 520px) { #menu-button { display: block; top: 8px; } }
+    .card .secondary { margin-top: 10px; background: #e3f3ff; color: #0754a6; box-shadow: 0 4px 0 #bfe0ff; font-size: 15px; }
+    .card .danger { margin-top: 10px; background: #ffe0e0; color: #a52626; box-shadow: 0 4px 0 #f3b3b3; font-size: 15px; }
+    .card .confirm { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff1c0; color: #856300; font-weight: 800; font-size: 13px; }
+    .card .confirm[data-open] { display: block; }
+    .card .confirm button { margin-top: 8px; font-size: 14px; }
     #crosshair { position: fixed; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; pointer-events: none; }
     #crosshair:before, #crosshair:after { content: ''; position: absolute; background: rgba(255,255,255,.9); box-shadow: 0 0 2px rgba(0,0,0,.6); }
     #crosshair:before { left: 8px; top: 0; width: 2px; height: 18px; }
@@ -44,9 +52,11 @@
     .brick.glass { opacity: .55; border: 1px solid rgba(255,255,255,.9); }
     #picker { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,40,80,.55); z-index: 4; }
     #picker[hidden] { display: none; }
-    #picker .book { width: min(560px, 94vw); max-height: 86vh; overflow: auto; background: white; border-radius: 20px; padding: 16px 16px 12px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    #picker .book { width: min(560px, 94vw); max-height: 86vh; display: flex; flex-direction: column; background: white; border-radius: 20px; padding: 16px 16px 12px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    #picker-grid { overflow-y: auto; min-height: 0; padding: 2px; }
     #picker h2 { margin: 0 0 4px; font-size: 18px; color: #0754a6; } #picker p { margin: 0 0 12px; font-size: 12px; color: #65758b; font-weight: 700; }
     #picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+    #picker-close { flex: 0 0 auto; }
     .pick { position: relative; height: 82px; border: 2px solid #e3f3ff; border-radius: 12px; background: #f7fbff; display: grid; place-items: center; padding: 6px 2px 4px; cursor: pointer; }
     .pick.selected { border-color: #ffd524; box-shadow: 0 0 0 2px rgba(255,213,36,.5); }
     .pick.empty { opacity: .55; }
@@ -71,7 +81,32 @@
     #jump { background: #ffd524; } #dig { background: #a0a5a9; } #build { background: #bbe90b; } #eat { background: #e4adc8; }
     #blocks { position: fixed; right: 18px; bottom: 214px; width: 70px; height: 44px; border-radius: 14px; border: 0; background: rgba(255,255,255,.85); font-weight: 900; font-size: 12px; color: #0754a6; display: none; touch-action: none; }
     @media (pointer: coarse) { #blocks { display: block; } }
-    @media (pointer: coarse) { #joystick, #touch { display: grid; } #help { display: none; } #hud { display: none; } #vitals { bottom: 132px; } #preview { bottom: 68px; } .slot { width: 42px; height: 42px; } .bar { width: 120px; } }
+    /* Phones and tablets: everything reachable by thumbs, nothing overlapping.
+       Top: menu, hearts, clock. Bottom: joystick left, action buttons right, hotbar along the edge. */
+    @media (pointer: coarse) {
+      #joystick, #touch { display: grid; }
+      #help, #hud { display: none; }
+      #vitals { top: 46px; bottom: auto; }
+      #preview { top: 118px; bottom: auto; padding: 4px 10px 6px; gap: 8px; }
+      #preview .label { font-size: 12px; } #preview .label small { font-size: 9px; }
+      .brick.big { width: 36px; height: 28px; } .item.big { font-size: 30px; }
+      #tips { top: 30%; font-size: 13px; }
+      #messages { top: 44%; font-size: 15px; }
+      #hotbar { left: 0; right: 0; bottom: 6px; transform: none; justify-content: flex-start; gap: 5px; padding: 0 8px; overflow-x: auto; scrollbar-width: none; }
+      #hotbar::-webkit-scrollbar { display: none; }
+      .slot { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px; }
+      .slot.selected { transform: translateY(-2px); }
+      .bar { width: 120px; }
+      #joystick { left: 16px; bottom: 66px; width: 120px; height: 120px; }
+      #joystick .arrow { font-size: 12px; }
+      #knob { left: 34px; top: 34px; }
+      #blocks { left: 16px; right: auto; bottom: 214px; width: 120px; height: 40px; }
+      #touch { right: 12px; bottom: 60px; gap: 8px; grid-template-columns: 62px 62px; }
+      #touch button { width: 62px; height: 62px; font-size: 12px; }
+      #jump { height: 56px !important; border-radius: 28px !important; }
+      #daynight { top: 12px; right: 74px; }
+      #clock { top: 12px; }
+    }
     /* Short screens (a phone held sideways, small laptop windows): vitals at the top, no help box. */
     @media (max-height: 520px) { #vitals { top: 8px; bottom: auto; } #hearts { font-size: 13px; } .bar { width: 120px; height: 8px; } #help, #hud { display: none; } #preview { bottom: 62px; padding: 4px 10px 6px; } .brick.big { width: 36px; height: 28px; } .item.big { font-size: 30px; } #tips { top: 30%; font-size: 13px; } #clock { top: 8px; right: 10px; } #title { display: none; } }
     .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,119,232,.92); color: white; padding: 20px; }
@@ -111,8 +146,17 @@
   <div id="hurt" hidden></div>
   <span id="daynight">☀️</span>
   <div id="picker" hidden><div class="book"><h2>Block book</h2><p>Tap a block to put it in the selected hotbar slot. Ores come from deep in the stone.</p><div id="picker-grid"></div><button id="picker-close">Close</button></div></div>
-  <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><div class="controls" id="controls"></div><ul id="start-rules"></ul><button id="play">Play ▶</button></div></div>
-  <div id="gameover" class="overlay" hidden><div class="card"><h2>Game over</h2><p id="cause"></p><table id="game-stats"></table><button id="retry">Try again on this planet ↻</button></div></div>
+  <button id="menu-button">☰ MENU</button>
+  <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><div class="controls" id="controls"></div><ul id="start-rules"></ul><button id="play">Play ▶</button><button class="secondary" data-menu="open">Start over or new planet…</button></div></div>
+  <div id="gameover" class="overlay" hidden><div class="card"><h2>Game over</h2><p id="cause"></p><table id="game-stats"></table><button id="retry">Try again on this planet ↻</button><button class="secondary" data-menu="open">Start over or new planet…</button></div></div>
+  <div id="menu" class="overlay" hidden><div class="card"><h1>Menu</h1>
+    <button id="menu-continue">Continue ▶</button>
+    <button class="secondary" id="menu-help">How to play</button>
+    <button class="secondary" id="menu-new">🌍 New planet (a brand-new world)</button>
+    <button class="danger" id="menu-restart">Restart this planet from scratch</button>
+    <div class="confirm" id="menu-confirm">Really? Everything you built on this planet and your life will be erased.<br><button class="danger" id="menu-restart-yes">Yes, erase it all</button> <button class="secondary" id="menu-restart-no">No, keep it</button></div>
+    <p style="margin:12px 0 0;font-size:12px;color:#65758b;font-weight:700">Planet seed: <b id="menu-seed"></b>. New planets are remembered; add <code>?seed=123</code> to the address to visit a specific one.</p>
+  </div></div>
   <div id="loading"><div>Building your planet…<small>generating the ground under your feet</small></div></div>
   <script src="../voice/clips.js"></script>
   <script type="module" src="src/main.js"></script>

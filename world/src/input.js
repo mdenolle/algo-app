@@ -25,7 +25,7 @@ export class Input {
       if (e.code === 'KeyR') this.actions.push('build');
       if (/^Digit[1-9]$/.test(e.code)) this.actions.push({ select: Number(e.code[5]) - 1 });
       if (e.code === 'KeyB' || e.code === 'Tab') { this.actions.push('blocks'); e.preventDefault(); }
-      if (e.code === 'Escape') this.actions.push('close');
+      if (e.code === 'Escape') this.actions.push('menu');
       if (e.code === 'KeyC') this.crawlToggle = !this.crawlToggle;
     });
     window.addEventListener('keyup', e => this.keys.delete(e.code));
@@ -101,7 +101,8 @@ export class Input {
 
     const tap = (button, action) => button.addEventListener('pointerdown', e => { e.preventDefault(); this.actions.push(action); });
     tap(digButton, 'dig'); tap(buildButton, 'build'); tap(eatButton, 'eat');
-    tap(blocksButton, 'blocks');
+    // The block book opens on click (not pointerdown), so the tap's own click cannot land inside the book.
+    blocksButton.addEventListener('click', () => this.actions.push('blocks'));
     crawlButton.addEventListener('pointerdown', e => { e.preventDefault(); this.crawlToggle = !this.crawlToggle; crawlButton.classList.toggle('on', this.crawlToggle); });
     preview.addEventListener('click', () => this.actions.push('blocks'));
 

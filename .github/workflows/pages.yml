@@ -1,0 +1,52 @@
+name: Publish to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - name: Assemble the site (web prototype, Algo World, voice, catalog, three.js)
+        run: |
+          mkdir -p dist/node_modules/three/build dist/node_modules/three/examples/jsm/utils
+          cp index.html app.js styles.css manifest.json icon.svg dist/
+          cp -r catalog voice world dist/
+          rm -rf dist/catalog/cache dist/world/test
+          cp node_modules/three/build/three.module.js node_modules/three/build/three.core.js dist/node_modules/three/build/
+          cp node_modules/three/examples/jsm/utils/BufferGeometryUtils.js dist/node_modules/three/examples/jsm/utils/
+          touch dist/.nojekyll
+          du -sh dist
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

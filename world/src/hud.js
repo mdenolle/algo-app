@@ -13,7 +13,7 @@ function blockIcon(block, big = false) {
 }
 
 export class Hud {
-  constructor(root, { onPlay, onRetry, onSelect, onAssign }) {
+  constructor(root, { onPlay, onRetry, onSelect, onAssign, onRestart, onNewPlanet, seed }) {
     this.el = {
       hearts: root.querySelector('#hearts'),
       hungerFill: root.querySelector('#hunger-fill'),
@@ -39,7 +39,23 @@ export class Hud {
       hurt: root.querySelector('#hurt'),
       daynight: root.querySelector('#daynight'),
       jump: root.querySelector('#jump'),
+      menu: root.querySelector('#menu'),
+      menuButton: root.querySelector('#menu-button'),
+      menuConfirm: root.querySelector('#menu-confirm'),
+      menuSeed: root.querySelector('#menu-seed'),
     };
+    this.el.menuSeed.textContent = seed;
+    this.menuFrom = null;
+    const openMenu = () => { this.menuFrom = !this.el.start.hidden ? 'start' : !this.el.gameover.hidden ? 'gameover' : 'game'; this.el.start.hidden = true; this.el.gameover.hidden = true; this.el.menu.hidden = false; delete this.el.menuConfirm.dataset.open; };
+    root.querySelectorAll('[data-menu="open"]').forEach(b => b.addEventListener('click', openMenu));
+    this.el.menuButton.addEventListener('click', openMenu);
+    root.querySelector('#menu-continue').addEventListener('click', () => this.closeMenu());
+    root.querySelector('#menu-help').addEventListener('click', () => { this.el.menu.hidden = true; this.el.start.hidden = false; });
+    root.querySelector('#menu-new').addEventListener('click', onNewPlanet);
+    root.querySelector('#menu-restart').addEventListener('click', () => { this.el.menuConfirm.dataset.open = '1'; });
+    root.querySelector('#menu-restart-no').addEventListener('click', () => { delete this.el.menuConfirm.dataset.open; });
+    root.querySelector('#menu-restart-yes').addEventListener('click', onRestart);
+    this.openMenu = openMenu;
     this.lastHealth = null;
     this.hurtUntil = 0;
     this.touch = window.matchMedia('(pointer: coarse)').matches;
@@ -75,11 +91,20 @@ export class Hud {
       this.pickerButtons.set(block.key, button);
     }
     this.el.pickerClose.addEventListener('click', () => this.closePicker());
-    this.el.picker.addEventListener('click', e => { if (e.target === this.el.picker) this.closePicker(); });
+    this.el.picker.addEventListener('click', e => { if (e.target === this.el.picker && performance.now() - this.pickerOpenedAt > 350) this.closePicker(); });
   }
 
+  get menuOpen() { return !this.el.menu.hidden; }
+  closeMenu() {
+    this.el.menu.hidden = true;
+    if (this.menuFrom === 'start') this.el.start.hidden = false;
+    else if (this.menuFrom === 'gameover') this.el.gameover.hidden = false;
+    this.menuFrom = null;
+  }
+  toggleMenu() { if (this.menuOpen) this.closeMenu(); else this.openMenu(); }
+
   get pickerOpen() { return !this.el.picker.hidden; }
-  openPicker() { this.el.picker.hidden = false; }
+  openPicker() { this.el.picker.hidden = false; this.pickerOpenedAt = performance.now(); }
   closePicker() { this.el.picker.hidden = true; }
   togglePicker() { if (this.pickerOpen) this.closePicker(); else this.openPicker(); }
 
