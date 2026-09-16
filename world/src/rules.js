@@ -13,8 +13,14 @@ export const RULES = Object.freeze({
   healHungerThreshold: 60,   // heal only when reasonably fed
   healPerSecond: 1 / 3,
   applePoints: 35,
-  safeFallSpeed: 16,         // impact speed (blocks/s) with no damage: about a 5-block drop
-  fallDamagePerSpeed: 0.45,  // hearts per (blocks/s) above the safe speed
+  food: { apple: 35, meat: 30 },
+  safeFallSpeed: 15,         // impact speed (blocks/s) with no damage: about a 4-block drop
+  fallDamagePerSpeed: 0.9,   // hearts per (blocks/s) above the safe speed: a 12-block fall is fatal
+  lavaDamagePerSecond: 2.5,  // standing on lava
+  burnDamagePerSecond: 0.8,  // after lava or a fire zombie, for burnSeconds
+  burnSeconds: 3,
+  frozenSeconds: 3,          // after an ice zombie: half speed
+  frozenSpeed: 0.5,
   reach: 7,                  // blocks you can dig/build from the player's head
   lives: 1,
 });
@@ -48,11 +54,14 @@ export function stepVitals(vitals, dt, context) {
     air = clamp(air + RULES.airRefillPerSecond * dt, 0, RULES.maxAir);
   }
 
+  if (context.onLava) { health -= RULES.lavaDamagePerSecond * dt; events.push('lava'); if (health <= 0 && !causeOfDeath) causeOfDeath = 'lava'; }
+  if (context.burning) { health -= RULES.burnDamagePerSecond * dt; events.push('burning'); if (health <= 0 && !causeOfDeath) causeOfDeath = 'burned'; }
+
   if (hunger <= 0) {
     health -= RULES.starveDamagePerSecond * dt;
     events.push('starving');
     if (health <= 0 && !causeOfDeath) causeOfDeath = 'starved';
-  } else if (hunger >= RULES.healHungerThreshold && health < RULES.maxHealth && !context.submerged) {
+  } else if (hunger >= RULES.healHungerThreshold && health < RULES.maxHealth && !context.submerged && !context.burning && !context.onLava) {
     health = clamp(health + RULES.healPerSecond * dt, 0, RULES.maxHealth);
   }
 
@@ -71,10 +80,19 @@ export function applyFallDamage(vitals, impactSpeed) {
 }
 
 export function eat(vitals, inventory, item = 'apple') {
+  const points = RULES.food[item] ?? RULES.applePoints;
   if (!vitals.alive || (inventory[item] ?? 0) <= 0 || vitals.hunger >= RULES.maxHunger - 1) return { vitals, inventory, ate: false };
   return {
-    vitals: { ...vitals, hunger: clamp(vitals.hunger + RULES.applePoints, 0, RULES.maxHunger) },
+    vitals: { ...vitals, hunger: clamp(vitals.hunger + points, 0, RULES.maxHunger) },
     inventory: { ...inventory, [item]: inventory[item] - 1 },
     ate: true,
   };
+}
+
+/** Damage from a monster (or anything else): returns updated vitals. */
+export function hurt(vitals, hearts, cause) {
+  if (!vitals.alive || hearts <= 0) return vitals;
+  const health = clamp(vitals.health - hearts, 0, RULES.maxHealth);
+  const alive = health > 0;
+  return { ...vitals, health, alive, causeOfDeath: alive ? null : cause };
 }

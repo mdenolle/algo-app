@@ -33,6 +33,8 @@ export class PlayerController {
     this.moving = false;
     this.lastImpact = 0;        // blocks/s at the last landing; the game reads and clears it
     this.jumpHeld = false;
+    this.speedMultiplier = 1;   // set by the game: frozen, crawling
+    this.crawling = false;      // sneak: slow, and you cannot walk off an edge
     this.dir = [0, 0, 0];
     this.tmp = { move: new THREE.Vector3(), trial: new THREE.Vector3(), camF: new THREE.Vector3(), camR: new THREE.Vector3() };
     this.respawn(startDirection);
@@ -83,12 +85,15 @@ export class PlayerController {
     let r = this.position.length();
     let column = this.world.column(this.up);
     const inWater = column.swim && r < waterR + 0.05;
-    const speed = this.speed * (input.run && !inWater ? this.runMultiplier : 1) * (inWater ? this.swimMultiplier : 1);
+    this.crawling = Boolean(input.crawl) && !inWater;
+    const speed = this.speed * (input.run && !inWater && !this.crawling ? this.runMultiplier : 1) * (inWater ? this.swimMultiplier : 1) * this.speedMultiplier;
 
     if (this.moving) {
       trial.copy(this.position).addScaledVector(move, speed * dt);
       const there = this.world.column(trial.clone().normalize());
-      if (R + there.solid - r <= (inWater ? this.climbOutHeight : this.stepHeight)) {
+      const drop = r - (R + there.solid);
+      const edgeSafe = !this.crawling || drop <= 1.05 || there.swim;   // crawling: never off a ledge
+      if (R + there.solid - r <= (inWater ? this.climbOutHeight : this.stepHeight) && edgeSafe) {
         this.position.copy(trial);
         this.facing.copy(move).normalize();
         column = there;
@@ -146,6 +151,6 @@ export class PlayerController {
   }
 
   headPosition(out = new THREE.Vector3()) {
-    return out.copy(this.position).addScaledVector(this.up, this.eyeHeight);
+    return out.copy(this.position).addScaledVector(this.up, this.crawling ? this.eyeHeight * 0.6 : this.eyeHeight);
   }
 }

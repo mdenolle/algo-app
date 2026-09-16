@@ -34,12 +34,14 @@ export class Renderer {
 
     this.camera = new THREE.PerspectiveCamera(62, 1, 0.1, far * 2);
 
-    const hemi = new THREE.HemisphereLight(0xdff4ff, 0x6b5a44, 1.4);
-    const sun = new THREE.DirectionalLight(0xfff4e0, 1.9);
-    sun.position.set(0.6, 0.9, 0.4).multiplyScalar(1000);
-    const fill = new THREE.DirectionalLight(0xcfe8ff, 0.55);
-    fill.position.set(-0.6, 0.3, -0.5).multiplyScalar(1000);
-    this.scene.add(hemi, sun, fill);
+    this.hemi = new THREE.HemisphereLight(0xdff4ff, 0x6b5a44, 1.4);
+    this.sun = new THREE.DirectionalLight(0xfff4e0, 1.9);
+    this.sun.position.set(0.6, 0.9, 0.4).multiplyScalar(1000);
+    this.fill = new THREE.DirectionalLight(0xcfe8ff, 0.55);
+    this.fill.position.set(-0.6, 0.3, -0.5).multiplyScalar(1000);
+    this.scene.add(this.hemi, this.sun, this.fill);
+    this.sunDirection = new THREE.Vector3(0.6, 0.9, 0.4).normalize();
+    this.daylight = 1;
 
     this.chunkGroup = new THREE.Group();
     this.scene.add(this.chunkGroup);
@@ -48,6 +50,8 @@ export class Renderer {
     this.plain = createBrickGeometry({ studded: false });
     // Slightly glossy ABS plastic. Colors come per instance.
     this.material = new THREE.MeshStandardMaterial({ roughness: 0.42, metalness: 0.02 });
+    // Glowstone and lava: unlit, so they shine at night.
+    this.glowMaterial = new THREE.MeshBasicMaterial({ toneMapped: false });
     // Glass: see-through bricks, studs and all.
     this.glassMaterial = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.38, roughness: 0.1, metalness: 0.05, depthWrite: false });
     // Water: a translucent sheet at the top of the sea-level layer, seen from both sides.
@@ -97,11 +101,33 @@ export class Renderer {
     if (data.top.length) set.push(this.#instanced(this.studded, this.material, data.top, data.topColor));
     if (data.fill.length) set.push(this.#instanced(this.plain, this.material, data.fill, data.fillColor));
     if (data.glass && data.glass.length) { const g = this.#instanced(this.studded, this.glassMaterial, data.glass, data.glassColor); g.renderOrder = 1; set.push(g); }
+    if (data.glow && data.glow.length) set.push(this.#instanced(this.studded, this.glowMaterial, data.glow, data.glowColor));
     if (data.water.length) { const w = this.#instanced(this.waterGeometry, this.waterMaterial, data.water, null); w.renderOrder = 2; set.push(w); }
     if (data.apples.length) set.push(this.#instanced(this.appleGeometry, this.appleMaterial, data.apples, null));
     set.forEach(mesh => this.chunkGroup.add(mesh));
     this.meshes.set(key, set);
-    this.blockCount += data.top.length / 16 + data.fill.length / 16 + (data.glass ? data.glass.length / 16 : 0);
+    this.blockCount += data.top.length / 16 + data.fill.length / 16 + (data.glass ? data.glass.length / 16 : 0) + (data.glow ? data.glow.length / 16 : 0);
+  }
+
+  /**
+   * Day and night: the sun circles the planet once per cycle. `phase` in [0,1);
+   * how bright it is where you stand depends on the sun's height above your horizon.
+   */
+  setTime(phase, up) {
+    const angle = phase * Math.PI * 2;
+    // Sun orbit tilted so the poles get some light too.
+    this.sunDirection.set(Math.cos(angle), 0.35 * Math.sin(angle * 0.5 + 1), Math.sin(angle)).normalize();
+    this.sun.position.copy(this.sunDirection).multiplyScalar(1000);
+    const elevation = this.sunDirection.dot(up);          // 1 noon, 0 horizon, -1 midnight
+    const day = Math.min(1, Math.max(0, elevation * 3 + 0.35));   // dusk is quick, night is dark but not black
+    this.daylight = day;
+    this.sun.intensity = 1.9 * Math.max(0, elevation) + 0.15 * day;
+    this.hemi.intensity = 0.55 + 0.9 * day;                        // moonlight: you can still see where you walk
+    this.fill.intensity = 0.15 + 0.4 * day;
+    const sky = new THREE.Color(SKY).lerp(new THREE.Color(0x10224a), 1 - day);
+    if (elevation < 0.15 && elevation > -0.1) sky.lerp(new THREE.Color(0xff9a5a), 0.35 * (1 - Math.abs(elevation - 0.02) / 0.13));   // sunrise/sunset
+    if (!this.underwater) { this.scene.background.copy(sky); this.skyFog.color.copy(sky); }
+    return { elevation, day };
   }
 
   /** Show the highlight box on one block (column-major matrix from blockMatrix), or hide it. */
@@ -123,7 +149,7 @@ export class Renderer {
     if (!set) return;
     for (const mesh of set) {
       this.chunkGroup.remove(mesh);
-      if (mesh.material === this.material || mesh.material === this.glassMaterial) this.blockCount -= mesh.count;
+      if (mesh.material === this.material || mesh.material === this.glassMaterial || mesh.material === this.glowMaterial) this.blockCount -= mesh.count;
       mesh.dispose();
     }
     this.meshes.delete(key);

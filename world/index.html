@@ -63,6 +63,10 @@
     .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 4px 0 16px; font-size: 13px; font-weight: 700; }
     .controls b { display: inline-block; min-width: 54px; padding: 2px 6px; margin-right: 6px; border-radius: 6px; background: #e3f3ff; color: #0754a6; text-align: center; font-size: 12px; }
     #touch { position: fixed; right: 18px; bottom: 24px; display: none; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #crawl { background: #d7e1e9; } #crawl.on { background: #29ad66; color: white; }
+    #hurt { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 120px rgba(236,61,61,.75); z-index: 3; }
+    #hurt[hidden] { display: none; }
+    #daynight { position: fixed; top: 44px; right: 62px; font-size: 18px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
     #touch button { width: 70px; height: 70px; border-radius: 50%; border: 0; font-weight: 900; font-size: 13px; color: #3a3a27; box-shadow: 0 5px 0 rgba(0,0,0,.25); touch-action: none; user-select: none; -webkit-user-select: none; }
     #jump { background: #ffd524; } #dig { background: #a0a5a9; } #build { background: #bbe90b; } #eat { background: #e4adc8; }
     #blocks { position: fixed; right: 18px; bottom: 214px; width: 70px; height: 44px; border-radius: 14px; border: 0; background: rgba(255,255,255,.85); font-weight: 900; font-size: 12px; color: #0754a6; display: none; touch-action: none; }
@@ -99,11 +103,13 @@
   <div id="messages"></div>
   <div id="preview"></div>
   <div id="hotbar"></div>
-  <div id="help">WASD walk · Shift run · Space jump / swim up<br>drag to look · wheel to zoom<br>click or E dig · right-click or R build · 1–9 pick · B block book · F eat</div>
+  <div id="help">WASD walk · Shift run · C crawl · Space jump / swim<br>drag to look · wheel to zoom · click: dig or hit a zombie<br>right-click build · 1–9 pick · B block book · F eat</div>
   <div id="joystick"><span class="arrow" style="left:58px;top:6px">▲</span><span class="arrow" style="left:58px;bottom:6px">▼</span><span class="arrow" style="left:8px;top:54px">◀</span><span class="arrow" style="right:8px;top:54px">▶</span><div id="knob"></div></div>
   <div id="tips" hidden></div>
   <button id="blocks">BLOCKS</button>
-  <div id="touch"><button id="dig">DIG</button><button id="build">BUILD</button><button id="eat">EAT</button><button id="jump">JUMP</button></div>
+  <div id="touch"><button id="dig">DIG</button><button id="build">BUILD</button><button id="eat">EAT</button><button id="crawl">CRAWL</button><button id="jump" style="grid-column: 1 / span 2; width: 100%; border-radius: 40px;">JUMP</button></div>
+  <div id="hurt" hidden></div>
+  <span id="daynight">☀️</span>
   <div id="picker" hidden><div class="book"><h2>Block book</h2><p>Tap a block to put it in the selected hotbar slot. Ores come from deep in the stone.</p><div id="picker-grid"></div><button id="picker-close">Close</button></div></div>
   <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><div class="controls" id="controls"></div><ul id="start-rules"></ul><button id="play">Play ▶</button></div></div>
   <div id="gameover" class="overlay" hidden><div class="card"><h2>Game over</h2><p id="cause"></p><table id="game-stats"></table><button id="retry">Try again on this planet ↻</button></div></div>

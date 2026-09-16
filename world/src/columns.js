@@ -22,6 +22,7 @@ export const parseColumnKey = key => { const [face, i, j] = key.split(':').map(N
  */
 export function oreAt(oreSeed, k) {
   const r = mulberry32((oreSeed ^ Math.imul(k + 1, 2654435761)) | 0)();
+  if (k <= 3 && r > 0.94) return MATERIAL.lava;     // lava pockets at the bottom of the world: mind where you dig
   if (r < 0.05) return MATERIAL.coal;
   if (k <= 6) {
     if (r < 0.075) return MATERIAL.diamond;

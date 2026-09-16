@@ -13,7 +13,11 @@ Android app.
 | Drowning | Water is deep: you sink and swim (hold JUMP / Space to rise). 12 s of air, then 1.5 hearts/s. Jumping into water from a height is safe. At the surface, press JUMP to hop out; you can also haul yourself onto a shore up to 2 blocks high. | `player.js`, `rules.js` |
 | Hunger | Drains from 100 to 0 in 8 minutes at rest, twice as fast when running. At zero you starve (0.5 hearts/s). Above 60 you slowly heal. | `rules.js` |
 | Food | Apples grow on about 1 in 220 grass columns (LEGO red). Walk over one to pick it up; eat with F, the EAT button, or by selecting slot 8 and building. +35 hunger. You start with two. | `columns.js` (`hasApple`), `game.js` |
-| Falling | Landing faster than 16 blocks/s (about a 5-block drop) costs 0.45 hearts per extra block/s. A jump clears a 2-block ledge, so a 2-deep hole is not a trap; deeper, dig steps. | `rules.js`, `player.js` |
+| Falling | Landing faster than 15 blocks/s (about a 4-block drop) costs 0.9 hearts per extra block/s: a 12-block fall is fatal. CRAWL (C, or the button) halves your speed and stops you walking off an edge. A jump clears a 2-block ledge. | `rules.js`, `player.js` |
+| Lava | Pockets at the very bottom of the world (layer 3 and below) and a placeable block. Standing on it: 2.5 hearts/s, and you keep burning 3 s after. Glows in the dark. | `rules.js`, `columns.js` (`oreAt`) |
+| Day and night | A day is 6 minutes (`DAY_LENGTH`): about 3½ of light, 2½ of night. The sun circles the planet; glowstone and lava shine at night. | `renderer.js` (`setTime`), `game.js` |
+| Animals | Sheep, pig, cow, chicken wander the grass (up to 8 nearby). Hit one (dig) 1–3 times and it drops meat (+30 hunger). | `mobs.js` |
+| Zombies | Mostly at night (5 nearby; 1 by day). Ice zombie (cold places; its hit freezes you to half speed for 3 s), fire zombie (sets you burning), water zombie (in the sea), electric zombie (zaps ½ heart from 4 blocks), and the Everything Zombie (changes colour and mind every 2 s: chases, sprints, flees, hops, spins, naps, teleports behind you). 4 hits to beat one (6 for the Everything Zombie); they drop ice, redstone, lapis, gold, diamond. They are slower than you. | `mobs.js` |
 | Dig | Click / E / DIG / tap removes the highlighted block and puts its material in your hotbar. Grass, then dirt, then stone; sand over stone on beaches. Under water you dig the sea floor (sand, then stone), from the surface or while swimming. Ice on the frozen sea gives an ice brick and leaves an open hole. Nothing below layer 2. Digging a beach column to sea level floods it. | `columns.js` (`EditStore`), `interact.js` |
 | Build | Right-click / R / BUILD / hold a finger 0.45 s places the selected block on the column you are looking at (its top, or the column in front of a wall), on the sea floor under water, or on top of the ice. If the crosshair misses, the block right in front of your feet is the target. Build on the block you stand on and you rise with it. You start with a builder's chest: dirt, wood, planks, logs, leaves, glass, bricks, pink, purple, glowstone, 3 TNT, 2 apples. | same |
 | Hotbar and block book | 9 slots (1–9 or tap), each holding any block. B, Tab, the BLOCKS button or tapping the preview opens the block book: every block with its count; tap one to put it in the selected slot. | `game.js` (`BLOCKS`, `DEFAULT_HOTBAR`), `hud.js` |
@@ -30,7 +34,7 @@ official Minecraft sets, so the mix is deliberate.
 
 | Terrain | Building | Ores (mined) | Special |
 |---|---|---|---|
-| Grass, Dirt, Stone, Cobblestone, Sand, Snow, Ice | Planks, Log, Leaves, Bricks, Glass (see-through), Wood, Pink, Purple, Glowstone | Coal, Iron, Gold, Emerald, Redstone, Lapis, Diamond, Obsidian | TNT, Apple |
+| Grass, Dirt, Stone, Cobblestone, Sand, Snow, Ice | Planks, Log, Leaves, Bricks, Glass (see-through), Wood, Pink, Purple, Cyan, Magenta, Terracotta, Cactus, Pumpkin, Glowstone (glows) | Coal, Iron, Gold, Emerald, Redstone, Lapis, Diamond, Obsidian | TNT, Lava (glows, burns), Apple, Meat |
 
 ## What V1 does
 
@@ -53,11 +57,13 @@ official Minecraft sets, so the mix is deliberate.
 
 ## Controls
 
-Keyboard and mouse: `W A S D` / arrows walk, `Shift` run, `Space` jump or swim up,
-drag to orbit, wheel to zoom, left click or `E` dig, right click or `R` build,
-`1`–`8` pick a block, `F` eat. Touch: left joystick walks, drag elsewhere orbits,
-pinch zooms, tap digs, long-press builds, and the `DIG` / `BUILD` / `EAT` / `JUMP`
-buttons.
+Keyboard and mouse: `W A S D` / arrows walk, `Shift` run, `C` crawl, `Space` jump or
+swim up, drag to orbit, wheel to zoom, left click digs the block under the mouse (or
+hits a zombie), right click builds there, `E` / `R` dig / build at the crosshair,
+`1`–`9` pick a block, `B` block book, `F` eat. Touch: left joystick walks, drag
+elsewhere orbits, pinch zooms, tap digs the block under your finger (or hits a
+zombie), hold builds there, and the `DIG` / `BUILD` / `EAT` / `CRAWL` / `JUMP` (`SWIM`
+in water) / `BLOCKS` buttons act on the crosshair.
 
 URL parameters: `?seed=42` new planet, `?distance=4` fewer chunks (phones),
 `?size=768` bigger planet (columns per cube-face edge; radius = 2·size/π).

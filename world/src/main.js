@@ -14,7 +14,8 @@ import { Input } from './input.js';
 import { Game } from './game.js';
 import { Hud } from './hud.js';
 import { RULES } from './rules.js';
-import { findTarget, highlightMatrix, targetInFront } from './interact.js';
+import { findTarget, findTargetOnScreen, highlightMatrix, targetInFront, screenRay } from './interact.js';
+import { MobManager } from './mobs.js';
 import * as persistence from './persistence.js';
 import { say } from './voice.js';
 import { chunkOfDirection, chunkKey, latLon, normalize } from './planet.js';
@@ -55,11 +56,13 @@ const input = new Input(canvas, {
   eatButton: document.querySelector('#eat'),
   blocksButton: document.querySelector('#blocks'),
   preview: document.querySelector('#preview'),
+  crawlButton: document.querySelector('#crawl'),
 });
 const game = new Game(world, player, chunks, renderer, saved?.life ? restoreLife(saved.life) : null);
+const mobs = new MobManager(world, player, game, renderer.scene);
 const hud = new Hud(document, {
   onPlay: () => { game.started = true; hud.hideOverlays(); say('Welcome to Algo World! Let’s explore!', 'world-welcome'); },
-  onRetry: () => { game.newLife(world.terrain.findSpawn()); game.started = true; cameraController.initialised = false; hud.hideOverlays(); persistence.save(config.seed, world, game, cameraController); },
+  onRetry: () => { game.newLife(world.terrain.findSpawn()); mobs.clear(); game.started = true; cameraController.initialised = false; hud.hideOverlays(); persistence.save(config.seed, world, game, cameraController); },
   onSelect: index => game.select(index),
   onAssign: key => game.assign(key),
 });
@@ -76,7 +79,7 @@ function restoreLife(life) {
 hud.showStart(Boolean(saved?.life));
 
 // Expose for debugging from the console.
-window.algoWorld = { config, world, terrain: world.terrain, chunks, renderer, player, camera: cameraController, game, input, hud, radius: world.radius };
+window.algoWorld = { config, world, terrain: world.terrain, chunks, renderer, player, camera: cameraController, game, input, hud, mobs, radius: world.radius };
 
 const basis = new THREE.Matrix4();
 const xAxis = new THREE.Vector3();
@@ -105,14 +108,32 @@ function updateStats() {
   ].join('\n');
 }
 
+// Taps and clicks act on the block under the finger or mouse; keys and the DIG/BUILD
+// buttons act on the crosshair (with the block in front of you as a fallback).
+function targetFor(action) {
+  if (action.x === undefined) return target;
+  const hit = findTargetOnScreen(world, renderer.camera, player, action.x, action.y, RULES.reach);
+  if (hit?.tooFar) { game.say('Too far away. Walk closer to that block', 1.6); return null; }
+  return hit ?? target;
+}
+
+// A mob in the way of a dig gets hit instead of the block behind it.
+function mobFor(action) {
+  const reach = renderer.camera.position.distanceTo(player.headPosition(head)) + RULES.reach;
+  if (action.x === undefined) { renderer.camera.getWorldDirection(cameraForward); return mobs.pick(renderer.camera.position, cameraForward, reach); }
+  const ray = screenRay(renderer.camera, action.x, action.y);
+  return mobs.pick(ray.origin, ray.direction, reach);
+}
+
 function handleActions(actions) {
-  for (const action of actions) {
-    if (action === 'blocks') hud.togglePicker();
-    else if (action === 'close') hud.closePicker();
+  for (const raw of actions) {
+    const action = typeof raw === 'string' ? { type: raw } : raw;
+    if (action.type === 'blocks') hud.togglePicker();
+    else if (action.type === 'close') hud.closePicker();
     else if (hud.pickerOpen) continue;                 // the book is open: taps go to it, not the planet
-    else if (action === 'dig') game.dig(target);
-    else if (action === 'build') game.build(target);
-    else if (action === 'eat') game.eatSelected();
+    else if (action.type === 'dig') { const mob = mobFor(action); if (mob) game.hitMob(mobs, mob); else { const t = targetFor(action); if (t) game.dig(t); } }
+    else if (action.type === 'build') { const t = targetFor(action); if (t) game.build(t); }
+    else if (action.type === 'eat') game.eatSelected();
     else if (action.select !== undefined) game.select(action.select);
   }
 }
@@ -140,8 +161,10 @@ function frame(now) {
     renderer.setHighlight(null);
   }
 
+  const { day } = renderer.setTime(game.dayPhase, player.up);
   const wasAlive = game.vitals.alive;
   game.tick(dt, snapshot);
+  if (playing && !hud.pickerOpen) mobs.update(dt, day);
   if (wasAlive && !game.vitals.alive) {
     hud.showGameOver(game.vitals, game.life.stats);
     say('Oh no! Let’s try again!', 'world-gameover');
@@ -174,7 +197,7 @@ function frame(now) {
   if (saveTimer > 5 && game.started) { saveTimer = 0; persistence.save(config.seed, world, game, cameraController); }
 
   renderer.render();
-  hud.update(game, player);
+  hud.update(game, player, day);
   if ((now | 0) % 4 === 0) updateStats();
   requestAnimationFrame(frame);
 }

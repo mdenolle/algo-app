@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { BLOCKS, BLOCK_BY_KEY, DEFAULT_HOTBAR, HOTBAR_SIZE, freshLife, upgradeLife } from '../src/game.js';
 import { MATERIALS } from '../src/materials.js';
 
-test('every material except water is a block you can hold, plus the apple', () => {
-  assert.equal(BLOCKS.length, MATERIALS.length - 1 + 1);
-  assert.ok(BLOCK_BY_KEY.has('apple') && BLOCK_BY_KEY.has('diamond') && BLOCK_BY_KEY.has('tnt') && !BLOCK_BY_KEY.has('water'));
+test('every material except water is a block you can hold, plus apple and meat', () => {
+  assert.equal(BLOCKS.length, MATERIALS.length - 1 + 2);
+  assert.ok(BLOCK_BY_KEY.has('apple') && BLOCK_BY_KEY.has('meat') && BLOCK_BY_KEY.has('diamond') && BLOCK_BY_KEY.has('tnt') && BLOCK_BY_KEY.has('lava') && !BLOCK_BY_KEY.has('water'));
 });
 
 test('the default hotbar has nine known blocks and the chest has something to build with', () => {

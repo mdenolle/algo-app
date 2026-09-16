@@ -6,7 +6,7 @@
 
 import { createTerrain } from './terrain.js';
 import { columnDirection, neighbourDirection, columnOf } from './planet.js';
-import { MATERIAL, MATERIAL_RGB, isTranslucent } from './materials.js';
+import { MATERIAL, MATERIAL_RGB, isTranslucent, isGlowing } from './materials.js';
 import { planetRadius } from './config.js';
 import { EditStore, columnKey, resolveColumn, hasApple, columnSeed } from './columns.js';
 
@@ -22,7 +22,7 @@ self.onmessage = ({ data }) => {
   }
   const t0 = performance.now();
   const result = buildChunk(face, cx, cy, config, terrain, EditStore.fromJSON(data.edits), new Set(data.picked));
-  const buffers = ['top', 'topColor', 'fill', 'fillColor', 'glass', 'glassColor', 'water', 'apples'].map(name => result[name].buffer);
+  const buffers = ['top', 'topColor', 'fill', 'fillColor', 'glass', 'glassColor', 'glow', 'glowColor', 'water', 'apples'].map(name => result[name].buffer);
   self.postMessage({ type: 'chunk', key, face, cx, cy, buildMs: performance.now() - t0, ...result }, buffers);
 };
 
@@ -32,7 +32,8 @@ export function buildChunk(face, cx, cy, config, terrain, edits, picked) {
   const R = planetRadius(config);
   const { seaLevel } = config;
   const i0 = cx * N, j0 = cy * N;
-  const top = [], fill = [], glass = [], water = [], apples = [];
+  const top = [], fill = [], glass = [], glow = [], water = [], apples = [];
+  const listFor = (m, plain) => (isTranslucent(m) ? glass : isGlowing(m) ? glow : plain);
   const dir = [0, 0, 0], dirU = [0, 0, 0], dirV = [0, 0, 0], nd = [0, 0, 0];
   const cache = new Map();
 
@@ -81,15 +82,15 @@ export function buildChunk(face, cx, cy, config, terrain, edits, picked) {
       }
 
       const topMaterial = resolved.frozen ? MATERIAL.ice : resolved.top;
-      push(isTranslucent(topMaterial) ? glass : top, solid - 1, topMaterial);
-      for (let k = solid - 2; k >= lowest; k -= 1) { const m = resolved.layer(k); push(isTranslucent(m) ? glass : fill, k, m); }
+      push(listFor(topMaterial, top), solid - 1, topMaterial);
+      for (let k = solid - 2; k >= lowest; k -= 1) { const m = resolved.layer(k); push(listFor(m, fill), k, m); }
       if (resolved.water && !resolved.frozen) push(water, seaLevel - 1, MATERIAL.water);
       if (!resolved.water && !edit && !picked.has(key) && hasApple(config.seed, face, ci, cj, natural)) push(apples, solid - 0.2, MATERIAL.water);
     }
   }
 
-  const t = split(top), f = split(fill), g = split(glass);
-  return { top: t.matrices, topColor: t.colors, fill: f.matrices, fillColor: f.colors, glass: g.matrices, glassColor: g.colors, water: split(water).matrices, apples: split(apples).matrices };
+  const t = split(top), f = split(fill), g = split(glass), l = split(glow);
+  return { top: t.matrices, topColor: t.colors, fill: f.matrices, fillColor: f.colors, glass: g.matrices, glassColor: g.colors, glow: l.matrices, glowColor: l.colors, water: split(water).matrices, apples: split(apples).matrices };
 }
 
 function split(list) {

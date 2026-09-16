@@ -31,7 +31,7 @@ export class CameraController {
     const p = this.player;
     const c = Math.cos(this.yaw), s = Math.sin(this.yaw);
     this.camF.copy(p.forward).multiplyScalar(c).addScaledVector(p.right, s);
-    this.target.copy(p.position).addScaledVector(p.up, p.height * 0.8);
+    this.target.copy(p.position).addScaledVector(p.up, p.height * (p.crawling ? 0.5 : 0.8));
     this.desired.copy(this.target)
       .addScaledVector(this.camF, -Math.cos(this.pitch) * this.distance)
       .addScaledVector(p.up, Math.sin(this.pitch) * this.distance);

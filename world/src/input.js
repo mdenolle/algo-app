@@ -3,7 +3,8 @@
 // jump button. poll() returns a snapshot and clears the per-frame deltas.
 
 export class Input {
-  constructor(canvas, { joystick, knob, jumpButton, digButton, buildButton, eatButton, blocksButton, preview }) {
+  constructor(canvas, { joystick, knob, jumpButton, digButton, buildButton, eatButton, blocksButton, preview, crawlButton }) {
+    this.crawlToggle = false;
     this.keys = new Set();
     this.orbit = { dx: 0, dy: 0 };
     this.zoom = 0;
@@ -25,6 +26,7 @@ export class Input {
       if (/^Digit[1-9]$/.test(e.code)) this.actions.push({ select: Number(e.code[5]) - 1 });
       if (e.code === 'KeyB' || e.code === 'Tab') { this.actions.push('blocks'); e.preventDefault(); }
       if (e.code === 'Escape') this.actions.push('close');
+      if (e.code === 'KeyC') this.crawlToggle = !this.crawlToggle;
     });
     window.addEventListener('keyup', e => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
@@ -39,7 +41,7 @@ export class Input {
         // cancels the pointer for its own long-press gesture before pointerup.
         if (this.press.touch) {
           const press = this.press;
-          setTimeout(() => { if (this.press === press && !press.moved && !press.done) { press.done = true; this.actions.push('build'); } }, 450);
+          setTimeout(() => { if (this.press === press && !press.moved && !press.done) { press.done = true; this.actions.push({ type: 'build', x: press.x, y: press.y }); } }, 450);
         }
       }
     });
@@ -56,7 +58,8 @@ export class Input {
         this.orbit.dy += e.clientY - p.y;
       }
       p.x = e.clientX; p.y = e.clientY;
-      if (this.press && e.pointerId === this.press.id && Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y) > 8) this.press.moved = true;
+      // A finger wobbles; only a real drag cancels a tap or a hold.
+      if (this.press && e.pointerId === this.press.id && Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y) > (this.press.touch ? 22 : 8)) this.press.moved = true;
     });
     // A press that did not turn into a drag is a click: left digs, right builds;
     // on touch a quick tap digs and a long press builds.
@@ -67,8 +70,8 @@ export class Input {
       if (press && e.pointerId === press.id) {
         this.press = null;
         if (!press.moved && !press.done && e.type === 'pointerup') {
-          if (press.touch) this.actions.push('dig');
-          else this.actions.push(press.button === 2 ? 'build' : 'dig');
+          if (press.touch) this.actions.push({ type: 'dig', x: press.x, y: press.y });
+          else this.actions.push({ type: press.button === 2 ? 'build' : 'dig', x: press.x, y: press.y });
         }
       }
     };
@@ -99,6 +102,7 @@ export class Input {
     const tap = (button, action) => button.addEventListener('pointerdown', e => { e.preventDefault(); this.actions.push(action); });
     tap(digButton, 'dig'); tap(buildButton, 'build'); tap(eatButton, 'eat');
     tap(blocksButton, 'blocks');
+    crawlButton.addEventListener('pointerdown', e => { e.preventDefault(); this.crawlToggle = !this.crawlToggle; crawlButton.classList.toggle('on', this.crawlToggle); });
     preview.addEventListener('click', () => this.actions.push('blocks'));
 
     jumpButton.addEventListener('pointerdown', e => { e.preventDefault(); this.jumpButtonHeld = true; });
@@ -117,9 +121,10 @@ export class Input {
       move: { x, y },
       jump: k.has('Space') || this.jumpButtonHeld,
       run: k.has('ShiftLeft') || k.has('ShiftRight'),
+      crawl: this.crawlToggle || k.has('ControlLeft') || k.has('ControlRight'),
       orbit: { dx: this.orbit.dx, dy: this.orbit.dy },
       zoom: this.zoom,
-      actions: this.actions,
+      actions: this.actions.map(a => (typeof a === 'string' ? { type: a } : a)),
     };
     this.orbit.dx = 0; this.orbit.dy = 0; this.zoom = 0; this.actions = [];
     return snapshot;

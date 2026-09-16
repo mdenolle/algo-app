@@ -36,11 +36,16 @@ export class Hud {
       picker: root.querySelector('#picker'),
       pickerGrid: root.querySelector('#picker-grid'),
       pickerClose: root.querySelector('#picker-close'),
+      hurt: root.querySelector('#hurt'),
+      daynight: root.querySelector('#daynight'),
+      jump: root.querySelector('#jump'),
     };
+    this.lastHealth = null;
+    this.hurtUntil = 0;
     this.touch = window.matchMedia('(pointer: coarse)').matches;
     const controls = this.touch
-      ? [['joystick', 'move'], ['drag', 'look around'], ['JUMP', 'jump, swim up, hop out of water'], ['tap', 'dig the outlined block'], ['hold', 'build the block you picked'], ['EAT', 'eat an apple']]
-      : [['W A S D', 'move (or arrows)'], ['mouse', 'drag to look, wheel to zoom'], ['Space', 'jump, swim up, hop out of water'], ['click', 'dig the outlined block'], ['right-click', 'build the block you picked'], ['1 – 8', 'pick a block · F eats']];
+      ? [['joystick', 'move'], ['drag', 'look around'], ['JUMP', 'jump; in water: swim up, hop out'], ['tap', 'dig that block, or hit a zombie'], ['hold', 'build the block you picked there'], ['CRAWL', 'slow and safe at edges'], ['EAT', 'eat an apple or meat'], ['BLOCKS', 'the block book']]
+      : [['W A S D', 'move (or arrows)'], ['mouse', 'drag to look, wheel to zoom'], ['Space', 'jump; in water: swim up, hop out'], ['click', 'dig that block, or hit a zombie'], ['right-click', 'build the block you picked there'], ['C', 'crawl: slow and safe at edges'], ['1 – 9 · B', 'pick a block · block book'], ['F', 'eat an apple or meat']];
     this.el.controls.innerHTML = controls.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
     this.tipsUntil = 0;
     this.el.startRules.innerHTML = RULE_SUMMARY.map(line => `<li>${line}</li>`).join('');
@@ -100,8 +105,9 @@ export class Hud {
   }
 
   showGameOver(vitals, stats) {
-    const causes = { drowned: 'You drowned. Next time, hold JUMP to swim up.', starved: 'You starved. Apples grow on the grass.', fell: 'You fell too far. Dig stairs down, or jump into water.', exploded: 'TNT got you. Light it, then run at least six blocks away.', hurt: 'You ran out of hearts.' };
-    this.el.cause.textContent = causes[vitals.causeOfDeath] ?? causes.hurt;
+    const causes = { drowned: 'You drowned. Next time, hold JUMP to swim up.', starved: 'You starved. Apples grow on the grass, animals drop meat.', fell: 'You fell too far. Crawl near edges, dig stairs down, or jump into water.', exploded: 'TNT got you. Light it, then run at least six blocks away.', lava: 'Lava! It hides at the very bottom of the world. Never dig straight down.', burned: 'You burned. Lava and fire zombies: keep your distance.', zapped: 'An electric zombie zapped you one time too many.', hurt: 'You ran out of hearts.' };
+    const cause = vitals.causeOfDeath;
+    this.el.cause.textContent = causes[cause] ?? (cause ? `A ${cause} got you. Hit zombies four times, or run: they are slower than you.` : causes.hurt);
     const minutes = Math.floor(stats.survived / 60), seconds = Math.floor(stats.survived % 60);
     this.el.gameStats.innerHTML = [
       ['Survived', `${minutes} min ${seconds} s`],
@@ -109,12 +115,22 @@ export class Hud {
       ['Blocks built', stats.built],
       ['Apples found', stats.applesFound],
       ['Apples eaten', stats.eaten],
+      ['Ores found', stats.oresFound ?? 0],
+      ['Zombies beaten', stats.zombiesBeaten ?? 0],
     ].map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
     this.el.gameover.hidden = false;
   }
 
-  update(game, player) {
+  update(game, player, daylight = 1) {
     const v = game.vitals;
+    const now0 = performance.now();
+    if (this.lastHealth !== null && v.health < this.lastHealth - 0.05) this.hurtUntil = now0 + 350;
+    this.lastHealth = v.health;
+    this.el.hurt.hidden = now0 > this.hurtUntil;
+    const dayIcon = daylight > 0.6 ? '☀️' : daylight > 0.3 ? '🌅' : '🌙';
+    if (this.el.daynight.textContent !== dayIcon) this.el.daynight.textContent = dayIcon;
+    const jumpLabel = player.inWater ? 'SWIM ▲' : 'JUMP';
+    if (this.el.jump.textContent !== jumpLabel) this.el.jump.textContent = jumpLabel;
     const hearts = Array.from({ length: RULES.maxHealth }, (_, i) => (v.health >= i + 1 ? '❤️' : v.health > i ? '🧡' : '🖤')).join('');
     if (hearts !== this.lastHearts) { this.el.hearts.textContent = hearts; this.lastHearts = hearts; }
     this.el.hungerFill.style.width = `${(v.hunger / RULES.maxHunger) * 100}%`;

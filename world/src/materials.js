@@ -30,6 +30,12 @@ export const MATERIALS = [
   { id: 23, key: 'pink', name: 'Pink block', lego: { id: 29, name: 'Bright Pink' }, hex: 'E4ADC8' },
   { id: 24, key: 'purple', name: 'Purple block', lego: { id: 30, name: 'Medium Lavender' }, hex: 'AC78BA' },
   { id: 25, key: 'glowstone', name: 'Glowstone', lego: { id: 226, name: 'Bright Light Yellow' }, hex: 'FFF03A', glow: true },
+  { id: 26, key: 'cactus', name: 'Cactus', lego: { id: 288, name: 'Dark Green' }, hex: '184632' },
+  { id: 27, key: 'pumpkin', name: 'Pumpkin', lego: { id: 191, name: 'Bright Light Orange' }, hex: 'F8BB3D' },
+  { id: 28, key: 'terracotta', name: 'Terracotta', lego: { id: 484, name: 'Dark Orange' }, hex: 'A95500' },
+  { id: 29, key: 'cyan', name: 'Cyan block', lego: { id: 3, name: 'Dark Turquoise' }, hex: '008F9B' },
+  { id: 30, key: 'magenta', name: 'Magenta block', lego: { id: 26, name: 'Magenta' }, hex: '923978' },
+  { id: 31, key: 'lava', name: 'Lava', lego: { id: 182, name: 'Trans-Orange' }, hex: 'F08F1C', glow: true, hurts: true },
 ];
 
 export const MATERIAL = Object.fromEntries(MATERIALS.map(m => [m.key, m.id]));
@@ -43,3 +49,4 @@ export const MATERIAL_RGB = MATERIALS.map(m => {
 });
 
 export const isTranslucent = id => Boolean(MATERIALS[id]?.translucent);
+export const isGlowing = id => Boolean(MATERIALS[id]?.glow);
