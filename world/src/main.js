@@ -152,7 +152,7 @@ function handleActions(actions) {
     else if (action.type === 'close') hud.closePicker();
     else if (hud.pickerOpen || hud.menuOpen) continue;   // a card is open: taps go to it, not the planet
     else if (action.type === 'dig') { const mob = mobFor(action); if (mob) game.hitMob(mobs, mob); else { const t = targetFor(action); if (t) game.dig(t); } }
-    else if (action.type === 'build') { const t = targetFor(action); if (t) game.build(t); }
+    else if (action.type === 'build') { const mob = mobFor(action); if (mob) game.hitMob(mobs, mob); else { const t = targetFor(action); if (t) game.build(t); } }
     else if (action.type === 'eat') game.eatSelected();
     else if (action.select !== undefined) game.select(action.select);
   }
@@ -175,7 +175,7 @@ function frame(now) {
     renderer.camera.getWorldDirection(cameraForward);
     player.headPosition(head);
     target = findTarget(world, renderer.camera.position, cameraForward, renderer.camera.position.distanceTo(head), RULES.reach) ?? targetInFront(world, player);
-    renderer.setHighlight(target ? highlightMatrix(world, target.dig, highlight) : null);
+    renderer.setHighlight(target && target.k >= 0 ? highlightMatrix(world, target, highlight) : null);
     handleActions(snapshot.actions);
   } else {
     target = null;

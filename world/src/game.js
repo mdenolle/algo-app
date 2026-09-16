@@ -93,7 +93,7 @@ export class Game {
     // Lava under your feet burns; burning and frozen wear off.
     const status = this.life.status;
     const underfoot = this.world.column(p.up);
-    const onLava = underfoot.resolved.surface === MATERIAL.lava && p.grounded;
+    const onLava = p.grounded && underfoot.resolved.material(this.world.layerOf(p.position.length()) - 1) === MATERIAL.lava;
     if (onLava) status.burning = RULES.burnSeconds;
     status.burning = Math.max(0, status.burning - dt);
     status.frozen = Math.max(0, status.frozen - dt);
@@ -127,19 +127,18 @@ export class Game {
       const now = performance.now();
       const ready = this.fuses.filter(f => f.until <= now);
       this.fuses = this.fuses.filter(f => f.until > now);
-      for (const fuse of ready) this.explode(fuse.column);
+      for (const fuse of ready) this.explode(fuse.column, fuse.k);
     }
     this.shake = Math.max(0, this.shake - dt);
   }
 
   dig(target) {
     if (!this.vitals.alive) return false;
-    if (!target) { this.say('Aim the crosshair at a block close to you', 2); return false; }
+    if (!target || target.k === undefined || target.k < 0) { this.say('Aim at a block close to you', 2); return false; }
     const column = target.dig;
-    const surface = this.world.column(column.dir).resolved.surface;
-    if (surface === MATERIAL.tnt) return this.light(column);
-    const removed = this.world.dig(column);
-    if (removed === null) { this.say('Bedrock: too deep to dig', 1.6); return false; }
+    if (column.resolved.material(target.k) === MATERIAL.tnt) return this.light(column, target.k);
+    const removed = this.world.digAt(column, target.k);
+    if (removed === null) { this.say(target.k < 2 ? 'Bedrock: too deep to dig' : 'Nothing to dig there', 1.6); return false; }
     const key = materialToKey.get(removed);
     if (key) this.inventory[key] += 1;
     if (MATERIALS[removed].ore) { this.life.stats.oresFound += 1; this.say(`✨ ${MATERIALS[removed].name}!`, 1.6); }
@@ -152,39 +151,44 @@ export class Game {
     if (!this.vitals.alive) return false;
     const slot = this.selectedSlot;
     if (slot.food) return this.eatSelected();
-    if (!target) { this.say('Aim the crosshair at the ground to build there', 2); return false; }
+    if (!target || !target.place || target.placeK === null) { this.say('Aim at the ground, or at the side of a block, to build there', 2); return false; }
     if (this.inventory[slot.key] <= 0) { this.say(`No ${slot.label.toLowerCase()} left. Dig some, or pick another block (1–9)`, 2.4); return false; }
-    const column = target.place;
-    const me = this.world.column(this.player.up);
-    const underMe = column.key === me.key && this.world.radius + column.solid + 1 > this.player.position.length() + 0.01;
-    const height = this.world.place(column, slot.material);
-    if (height === null) { this.say('Too high to build', 1.2); return false; }
+    const column = target.place, k = target.placeK;
+    // Not inside yourself: the player's body spans a few layers of its own column.
+    const p = this.player;
+    const me = this.world.column(p.up);
+    const feet = this.world.layerOf(p.position.length());
+    const insideMe = column.key === me.key && k >= feet && k <= this.world.layerOf(p.position.length() + p.height - 0.02);
+    const underMe = column.key === me.key && k === feet - 1 && !me.resolved.solid(k);
+    if (insideMe) { this.say('You are standing there! Step aside first', 1.6); return false; }
+    const placed = this.world.placeAt(column, k, slot.material);
+    if (placed === null) { this.say(k >= this.world.config.maxHeight ? 'Too high to build' : 'That spot is taken', 1.2); return false; }
     this.inventory[slot.key] -= 1;
     this.life.stats.built += 1;
     // Building under your own feet lifts you onto the new block: the easy way up a tower.
-    if (underMe) { this.player.position.setLength(this.world.radius + height); this.player.velocityUp = 0; }
+    if (underMe) { p.position.setLength(this.world.radius + k + 1); p.velocityUp = 0; }
     this.chunks.rebuild(this.world.chunksTouching(column));
     if (slot.key === 'tnt') this.say('TNT placed. Hit it to light the fuse, then RUN!', 2.5);
     return true;
   }
 
   /** Hitting TNT lights it: 3 seconds, then a crater. */
-  light(column) {
-    if (this.fuses.some(f => f.column.key === column.key)) return false;
-    this.fuses.push({ column, until: performance.now() + 3000 });
+  light(column, k) {
+    if (this.fuses.some(f => f.column.key === column.key && f.k === k)) return false;
+    this.fuses.push({ column, k, until: performance.now() + 3000 });
     this.say('💣 Fuse lit! RUN!', 2.5);
     return true;
   }
 
-  explode(column) {
-    const changed = this.world.blast(column, 2.5, 3);
+  explode(column, k) {
+    const changed = this.world.blast(column, k, 2.5);
     const keys = new Set();
     for (const c of changed) for (const key of this.world.chunksTouching(c)) keys.add(key);
     this.chunks.rebuild([...keys]);
     this.life.stats.explosions += 1;
     this.shake = 0.5;
     // Blast damage: up to 4 hearts within 2 blocks, nothing beyond 6.
-    const distance = this.player.position.distanceTo(this.#columnPosition(column));
+    const distance = this.player.position.distanceTo(this.#columnPosition(column, k));
     const hurt = distance < 6 ? 4 * Math.max(0, 1 - Math.max(0, distance - 2) / 4) : 0;
     if (hurt > 0 && this.vitals.alive) {
       const health = Math.max(0, this.vitals.health - hurt);
@@ -193,15 +197,15 @@ export class Game {
     } else {
       this.say('💥 BOOM!', 2);
     }
-    // A chain reaction: other TNT in the crater goes off too.
+    // A chain reaction: TNT around the crater goes off too.
     for (const c of changed) {
-      if (c.key === column.key) continue;
-      if (this.world.column(c.dir).resolved.surface === MATERIAL.tnt) this.light(c);
+      const col = this.world.column(c.dir).resolved;
+      for (let layer = Math.max(0, k - 3); layer <= k + 3; layer += 1) if (col.material(layer) === MATERIAL.tnt) this.light(c, layer);
     }
   }
 
-  #columnPosition(column) {
-    const r = this.world.radius + column.solid;
+  #columnPosition(column, k = column.resolved.top) {
+    const r = this.world.radius + k + 0.5;
     return this.player.position.clone().set(column.dir[0] * r, column.dir[1] * r, column.dir[2] * r);
   }
 
@@ -264,7 +268,8 @@ export const RULE_SUMMARY = [
   'Falling more than four blocks hurts; a big fall is fatal. Lava burns. TNT hurts.',
   'At night the zombies come: ice, fire, water, electric, and the Everything Zombie. Hit them (dig) four times. Animals drop meat.',
   'CRAWL (C) makes you slow but you cannot fall off an edge.',
-  'Dig: click, E or DIG (tap on a phone). Build: right-click, R or BUILD (hold your finger). Pick blocks with 1–9 or the block book (B).',
+  'On a phone: tap a spot to BUILD there, hold your finger on a block to BREAK it (or use the buttons). Laptop: right-click builds, click breaks.',
+  'Build anywhere: on the ground, sideways onto a wall, even in the air. Pick blocks with 1–9 or the block book (B).',
   'Ores hide deep in the stone: coal, iron, gold, redstone, lapis, emerald, diamond, obsidian. Dig down to find them.',
 ];
 

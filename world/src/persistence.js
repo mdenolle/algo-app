@@ -1,7 +1,7 @@
 // Persistence: the planet's edits, picked apples and the current life go to
 // localStorage under the seed. Dying deletes the life, not the planet.
 
-const VERSION = 1;
+const VERSION = 1;   // file format; the world's edits carry their own editsVersion (2 = block model)
 const key = seed => `algo-world:v${VERSION}:${seed}`;
 
 export function load(seed) {

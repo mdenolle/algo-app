@@ -1,17 +1,18 @@
-// Columns: the one place that answers "what is in column (face, i, j)" once player
-// edits are layered on the natural terrain. Shared by the worker (rendering), the
-// main thread (collision, targeting) and the tests. No three.js here.
+// Columns: the one place that answers "what is at layer k of column (face, i, j)"
+// once player edits are layered on the natural terrain. Shared by the worker
+// (rendering), the main thread (collision, targeting) and the tests. No three.js.
 //
-// An edited column is { h, placed } where h is its new surface height and
-// placed[k] is the material of a block the player put at layer k. Layers with no
-// placed entry take the natural material for that depth, so digging through grass
-// exposes dirt, then stone. A column whose surface is at or below sea level is
-// water (dig a hole on the beach and it floods).
+// The natural terrain is a height map (solid from layer 0 up to height-1). Edits
+// make it a real block world: { placed: {k: material}, removed: [k, ...], thawed }.
+// A placed block can sit anywhere, so bridges, overhangs and building sideways
+// onto a wall all work; a removed block leaves a hole (blocks above it float, as in
+// Minecraft). A column whose highest solid block is below sea level is water.
 
 import { MATERIAL } from './materials.js';
 import { columnDirection, neighbourDirection } from './planet.js';
 import { mulberry32 } from './noise.js';
 
+export const BEDROCK_LAYERS = 2;     // layers 0 and 1 can never be removed
 export const columnKey = (face, i, j) => `${face}:${i}:${j}`;
 export const parseColumnKey = key => { const [face, i, j] = key.split(':').map(Number); return { face, i, j }; };
 
@@ -19,10 +20,11 @@ export const parseColumnKey = key => { const [face, i, j] = key.split(':').map(N
  * Ores hide in the stone. `oreSeed` identifies the column; the layer decides what
  * can be there: coal anywhere, iron and emerald in the middle, gold, redstone,
  * lapis, diamond and obsidian near the bottom. About one stone block in nine is ore.
+ * Lava pockets sit at the very bottom.
  */
 export function oreAt(oreSeed, k) {
   const r = mulberry32((oreSeed ^ Math.imul(k + 1, 2654435761)) | 0)();
-  if (k <= 3 && r > 0.94) return MATERIAL.lava;     // lava pockets at the bottom of the world: mind where you dig
+  if (k <= 3 && r > 0.94) return MATERIAL.lava;
   if (r < 0.05) return MATERIAL.coal;
   if (k <= 6) {
     if (r < 0.075) return MATERIAL.diamond;
@@ -41,16 +43,16 @@ export function oreAt(oreSeed, k) {
   return MATERIAL.stone;
 }
 
-/** Material of the block at layer k in a natural (unedited) column. */
+/** Material of the natural block at layer k, or null where the natural column has no block. */
 export function naturalLayerMaterial(natural, k, seaLevel = Infinity, oreSeed = null) {
   const top = natural.height - 1;
   const stone = () => (oreSeed === null ? MATERIAL.stone : oreAt(oreSeed, k));
   if (natural.water) {
     if (natural.material === MATERIAL.ice && k > top && k < seaLevel) return MATERIAL.ice;   // frozen sea
-    if (k > top) return null;
+    if (k > top || k < 0) return null;
     return k === top ? MATERIAL.sand : stone();                                               // sea floor
   }
-  if (k > top) return null;
+  if (k > top || k < 0) return null;
   const below = top - k;
   const surface = natural.material;
   if (k === top) return surface;
@@ -67,17 +69,38 @@ export function columnSeed(seed, face, i, j) {
 
 /**
  * The column as it currently is. `edit` is the EditStore entry or undefined.
- * Returns { h, water, frozen, top, layer(k), walk } where walk is the radial
- * height a walker stands on (sea floor if swimming, ice surface if frozen).
+ *   solid(k)     is there a block at layer k
+ *   material(k)  its material (null if none)
+ *   top          highest solid layer (-1 if none), h = top + 1 is the surface height
+ *   water        the surface is under the sea (open water above it), frozen: ice sheet instead
+ *   surface      what you see from above: the top block, water, or ice
  */
 export function resolveColumn(natural, edit, seaLevel, oreSeed = null) {
-  const h = edit ? edit.h : natural.height;
-  const water = h <= seaLevel;
-  const frozen = water && natural.material === MATERIAL.ice && !(edit && edit.thawed);
-  const layer = k => (edit && edit.placed[k] !== undefined ? edit.placed[k] : naturalLayerMaterial(natural, k, seaLevel, oreSeed));
-  const top = layer(h - 1);                                   // highest solid block
-  const surface = water ? (frozen ? MATERIAL.ice : MATERIAL.water) : top;   // what you see from above
-  return { h, water, frozen, top, surface, layer, walk: frozen ? seaLevel : h, natural };
+  const removed = edit?.removed?.length ? new Set(edit.removed) : null;
+  const placed = edit?.placed ?? null;
+  const thawed = Boolean(edit?.thawed);
+  const isIce = natural.water && natural.material === MATERIAL.ice;
+  const naturalTop = natural.height - 1;
+
+  const material = k => {
+    if (placed && placed[k] !== undefined) return placed[k];
+    if (removed && removed.has(k)) return null;
+    if (isIce && thawed && k > naturalTop) return null;
+    return naturalLayerMaterial(natural, k, seaLevel, oreSeed);
+  };
+  const solid = k => material(k) !== null;
+
+  // Highest solid layer: start from the natural top / ice sheet / highest placed block.
+  let top = isIce && !thawed ? seaLevel - 1 : naturalTop;
+  if (placed) for (const k of Object.keys(placed)) top = Math.max(top, Number(k));
+  while (top >= 0 && !solid(top)) top -= 1;
+
+  const h = top + 1;
+  const frozen = isIce && !thawed && top === seaLevel - 1;
+  // Open water: the surface is below sea level, or it is a sea column with blocks floating above it.
+  const water = !frozen && (h <= seaLevel || (natural.water && !solid(seaLevel - 1)));
+  const surface = frozen ? MATERIAL.ice : water && h <= seaLevel ? MATERIAL.water : material(top);
+  return { h, top, water, frozen, surface, material, solid, layer: material, walk: h, natural };
 }
 
 /**
@@ -106,68 +129,97 @@ export function hasApple(seed, face, i, j, natural) {
   return rand() * APPLE_ODDS < 1;
 }
 
-/** Player edits to the planet, keyed by column. Serializable; sent whole to workers. */
+/** Player edits to the planet, keyed by column. Serializable; sent to workers per chunk. */
 export class EditStore {
   constructor(entries = []) {
-    this.map = new Map(entries.map(([key, value]) => [key, { h: value.h, placed: { ...value.placed }, ...(value.thawed ? { thawed: true } : {}) }]));
+    this.map = new Map(entries.map(([key, value]) => [key, EditStore.normalise(value)]));
+  }
+
+  static normalise(value) {
+    const entry = { placed: { ...(value.placed ?? {}) }, removed: [...(value.removed ?? [])] };
+    if (value.thawed) entry.thawed = true;
+    return entry;
+  }
+
+  /** Convert a version-1 entry ({ h, placed }, height-map semantics) given the natural height. */
+  static fromV1(value, naturalHeight) {
+    const entry = { placed: {}, removed: [] };
+    for (const [k, m] of Object.entries(value.placed ?? {})) if (Number(k) >= value.h) continue; else entry.placed[k] = m;
+    for (let k = value.h; k < naturalHeight; k += 1) entry.removed.push(k);
+    if (value.thawed) entry.thawed = true;
+    return entry;
   }
 
   get(key) { return this.map.get(key); }
   get size() { return this.map.size; }
 
   /**
-   * Remove the top solid block: the ice sheet on a frozen sea (leaves open water),
-   * else the top of the column, which under water is the sea floor. Returns the
-   * material removed, or null at bedrock.
+   * Remove the block at layer k. Returns its material, or null if there is nothing
+   * to dig there (air, water, bedrock). Digging any ice thaws the column.
    */
-  dig(key, natural, seaLevel, minHeight = 2, oreSeed = null) {
+  digAt(key, natural, seaLevel, k, oreSeed = null) {
     const current = resolveColumn(natural, this.map.get(key), seaLevel, oreSeed);
-    const entry = this.map.get(key) ?? { h: natural.height, placed: {} };
-    if (current.frozen) {
+    if (!current.solid(k)) return null;
+    if (k < BEDROCK_LAYERS) return null;
+    const entry = this.map.get(key) ?? { placed: {}, removed: [] };
+    const removedMaterial = current.material(k);
+    if (entry.placed[k] !== undefined) {
+      delete entry.placed[k];
+    } else if (removedMaterial === MATERIAL.ice && natural.water && natural.material === MATERIAL.ice) {
       entry.thawed = true;
-      entry.h = natural.height;                        // open water down to the sea floor
-      this.#store(key, entry, natural, seaLevel);
-      return MATERIAL.ice;
+    } else {
+      entry.removed.push(k);
     }
-    if (current.h <= minHeight) return null;           // keep a floor under the planet
-    const removed = current.top;
-    delete entry.placed[current.h - 1];
-    entry.h = current.h - 1;
-    this.#store(key, entry, natural, seaLevel);
-    return removed;
+    this.#store(key, entry);
+    return removedMaterial;
   }
 
-  /** Explosion damage: lower a column by up to `depth` blocks, keeping the bedrock floor. Returns blocks removed. */
-  blast(key, natural, seaLevel, depth, minHeight = 2) {
+  /** Remove the top block (what a height-map dig did). */
+  dig(key, natural, seaLevel, minHeight = BEDROCK_LAYERS, oreSeed = null) {
+    const current = resolveColumn(natural, this.map.get(key), seaLevel, oreSeed);
+    if (current.top < minHeight) return null;
+    return this.digAt(key, natural, seaLevel, current.top, oreSeed);
+  }
+
+  /** Put `material` at layer k if that cell is empty. Returns k, or null. */
+  placeAt(key, natural, seaLevel, k, material, maxHeight) {
+    if (k < 0 || k >= maxHeight) return null;
+    const current = resolveColumn(natural, this.map.get(key), seaLevel);
+    if (current.solid(k)) return null;
+    const entry = this.map.get(key) ?? { placed: {}, removed: [] };
+    entry.removed = entry.removed.filter(r => r !== k);
+    entry.placed[k] = material;
+    this.#store(key, entry);
+    return k;
+  }
+
+  /** Put `material` on top of the column (on the ice if the sea is frozen). Returns the new height, or null. */
+  place(key, natural, seaLevel, material, maxHeight) {
+    const current = resolveColumn(natural, this.map.get(key), seaLevel);
+    const k = current.top + 1;
+    return this.placeAt(key, natural, seaLevel, k, material, maxHeight) === null ? null : k + 1;
+  }
+
+  /** Explosion damage: remove up to `depth` blocks from the top down. Returns blocks removed. */
+  blast(key, natural, seaLevel, depth, minHeight = BEDROCK_LAYERS) {
     let removed = 0;
     for (let n = 0; n < depth; n += 1) {
-      const current = resolveColumn(natural, this.map.get(key), seaLevel);
-      if (current.frozen) { this.dig(key, natural, seaLevel, minHeight); removed += 1; continue; }
-      if (current.h <= minHeight) break;
       if (this.dig(key, natural, seaLevel, minHeight) === null) break;
       removed += 1;
     }
     return removed;
   }
 
-  /** Put `material` on top (on the ice if the sea is frozen). Returns the new height, or null if too tall. */
-  place(key, natural, seaLevel, material, maxHeight) {
-    const current = resolveColumn(natural, this.map.get(key), seaLevel);
-    const base = current.frozen ? seaLevel : current.h;
-    if (base >= maxHeight) return null;
-    const entry = this.map.get(key) ?? { h: natural.height, placed: {} };
-    entry.placed[base] = material;
-    entry.h = base + 1;
-    this.#store(key, entry, natural, seaLevel);
-    return entry.h;
+  /** Explosion damage at a point: remove the block at layer k if there is one. */
+  blastAt(key, natural, seaLevel, k) {
+    return this.digAt(key, natural, seaLevel, k) !== null;
   }
 
-  #store(key, entry, natural, seaLevel) {
-    const placedCount = Object.keys(entry.placed).length;
-    // On a frozen sea, taking back everything you built leaves the natural ice sheet.
-    if (natural.water && natural.material === MATERIAL.ice && !entry.thawed && placedCount === 0 && entry.h > natural.height && entry.h <= seaLevel) entry.h = natural.height;
-    // Back to natural? Drop the entry so the store only holds real differences.
-    if (entry.h === natural.height && placedCount === 0 && !entry.thawed) this.map.delete(key);
+  #store(key, entry) {
+    // Only real differences are kept; a placed block that fills a hole cancels the removal.
+    entry.placed = Object.fromEntries(Object.entries(entry.placed).filter(([, m]) => m !== undefined && m !== null));
+    entry.removed = [...new Set(entry.removed)].sort((a, b) => a - b);
+    if (Object.keys(entry.placed).length === 0 && entry.removed.length === 0 && !entry.thawed) this.map.delete(key);
     else this.map.set(key, entry);
   }
 

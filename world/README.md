@@ -18,8 +18,8 @@ Android app.
 | Day and night | A day is 6 minutes (`DAY_LENGTH`): about 3½ of light, 2½ of night. The sun circles the planet; glowstone and lava shine at night. | `renderer.js` (`setTime`), `game.js` |
 | Animals | Sheep, pig, cow, chicken wander the grass (up to 8 nearby). Hit one (dig) 1–3 times and it drops meat (+30 hunger). | `mobs.js` |
 | Zombies | Mostly at night (5 nearby; 1 by day). Ice zombie (cold places; its hit freezes you to half speed for 3 s), fire zombie (sets you burning), water zombie (in the sea), electric zombie (zaps ½ heart from 4 blocks), and the Everything Zombie (changes colour and mind every 2 s: chases, sprints, flees, hops, spins, naps, teleports behind you). 4 hits to beat one (6 for the Everything Zombie); they drop ice, redstone, lapis, gold, diamond. They are slower than you. | `mobs.js` |
-| Dig | Click / E / DIG / tap removes the highlighted block and puts its material in your hotbar. Grass, then dirt, then stone; sand over stone on beaches. Under water you dig the sea floor (sand, then stone), from the surface or while swimming. Ice on the frozen sea gives an ice brick and leaves an open hole. Nothing below layer 2. Digging a beach column to sea level floods it. | `columns.js` (`EditStore`), `interact.js` |
-| Build | Right-click / R / BUILD / hold a finger 0.45 s places the selected block on the column you are looking at (its top, or the column in front of a wall), on the sea floor under water, or on top of the ice. If the crosshair misses, the block right in front of your feet is the target. Build on the block you stand on and you rise with it. You start with a builder's chest: dirt, wood, planks, logs, leaves, glass, bricks, pink, purple, glowstone, 3 TNT, 2 apples. | same |
+| Break | Laptop: click the block (or E / DIG for the crosshair). Phone: hold a finger on it, or DIG. The block goes into your hotbar. Any block, at any height: dig a tunnel, a cave, a hole in a wall; the blocks above stay where they are. Grass, then dirt, then stone; sand over stone on beaches. Under water you dig the sea floor. Ice on the frozen sea gives an ice brick and opens the water. Nothing below layer 2. Digging a beach column to sea level floods it. | `columns.js` (`EditStore.digAt`), `interact.js` |
+| Build | Laptop: right-click (or R / BUILD for the crosshair). Phone: tap a spot, or BUILD. The selected block appears in the empty cell you pointed at: on top of a block, sideways against a wall, under an overhang, in the air on the end of a bridge. Not inside yourself. Build under your own feet and you rise with it. You start with a builder's chest: dirt, wood, planks, logs, leaves, glass, bricks, pink, purple, cyan, magenta, terracotta, cactus, pumpkin, glowstone, 2 lava, 3 TNT, 2 apples. | `columns.js` (`EditStore.placeAt`), `interact.js` |
 | Hotbar and block book | 9 slots (1–9 or tap), each holding any block. B, Tab, the BLOCKS button or tapping the preview opens the block book: every block with its count; tap one to put it in the selected slot. | `game.js` (`BLOCKS`, `DEFAULT_HOTBAR`), `hud.js` |
 | Ores | Stone deep in the ground is one part in nine ore: coal anywhere, iron and emerald in the middle layers, gold, redstone, lapis, diamond and obsidian near bedrock (layer 6 and below). Digging an ore gives that block. Cliff faces show them. | `columns.js` (`oreAt`) |
 | TNT | Place it, hit it to light the fuse, run: 3 s later a crater 2.5 blocks wide and up to 3 deep, 4 hearts of damage within 2 blocks, fading to none at 6. Other TNT in the crater chain-reacts. | `game.js` (`light`, `explode`), `world.js` (`blast`) |
@@ -58,12 +58,13 @@ official Minecraft sets, so the mix is deliberate.
 ## Controls
 
 Keyboard and mouse: `W A S D` / arrows walk, `Shift` run, `C` crawl, `Space` jump or
-swim up, drag to orbit, wheel to zoom, left click digs the block under the mouse (or
-hits a zombie), right click builds there, `E` / `R` dig / build at the crosshair,
-`1`–`9` pick a block, `B` block book, `F` eat. Touch: left joystick walks, drag
-elsewhere orbits, pinch zooms, tap digs the block under your finger (or hits a
-zombie), hold builds there, and the `DIG` / `BUILD` / `EAT` / `CRAWL` / `JUMP` (`SWIM`
-in water) / `BLOCKS` buttons act on the crosshair.
+swim up, drag to orbit, wheel to zoom, left click breaks the block under the mouse
+(or hits a zombie), right click builds in the cell under the mouse, `E` / `R` break /
+build at the crosshair, `1`–`9` pick a block, `B` block book, `F` eat. Touch: left
+joystick walks, drag elsewhere orbits, pinch zooms, **tap builds** in the cell under
+your finger (tapping a zombie hits it), **hold breaks** the block under your finger,
+and the `DIG` / `BUILD` / `EAT` / `CRAWL` / `JUMP` (`SWIM` in water) / `BLOCKS` buttons
+act on the crosshair.
 
 URL parameters: `?seed=42` new planet, `?distance=4` fewer chunks (phones),
 `?size=768` bigger planet (columns per cube-face edge; radius = 2·size/π).
@@ -78,11 +79,15 @@ re-projecting, so face edges need no special tables. With the default 512
 columns per edge the radius is 326 blocks and the horizon is about 57 blocks away
 at eye height.
 
-**Columns and edits.** `columns.js` answers "what is in this column now": the
-natural terrain plus the player's `EditStore` entry `{ h, placed }`. Digging
-lowers `h`; building adds `placed[k]`; layers without an entry take the natural
-material for their depth. Both the worker and the main thread use the same
-function, so what you collide with is what you see.
+**Columns and edits.** `columns.js` answers "what is at layer k of this column
+now": the natural terrain (a height map: solid from layer 0 to height−1, with
+ores in the stone) plus the player's `EditStore` entry `{ placed: {k: material},
+removed: [k…], thawed }`. A placed block can sit anywhere and a removed one leaves
+a hole, so the world is a real block world with tunnels, bridges and overhangs.
+`resolveColumn` gives `solid(k)`, `material(k)` and the top; the player, the mobs
+and the worker all use it, so what you collide with is what you see. Collision is
+`World.walkInto` (headroom for the body, one-block steps), `floorRadius` and
+`ceilingRadius`. Old height-map saves convert on load.
 
 **Terrain.** A pure function of the unit direction (`terrain.js`): layered seeded
 simplex noise for continents, hills, detail and ridged cliffs; latitude plus
@@ -98,8 +103,10 @@ them to a pool of module workers. Each worker returns instance matrices and
 colors as transferable typed arrays. Chunks farther than `renderDistance + 1`
 are dropped.
 
-**Rendering.** Up to four `InstancedMesh` per chunk (studded top blocks, plain
-fill blocks, a translucent water sheet at sea level, apples) sharing two geometries and one `MeshStandardMaterial`; colors are per
+**Rendering.** Up to six `InstancedMesh` per chunk (studded blocks with open sky
+above, plain blocks, glass, glowing blocks, a translucent water sheet at sea level,
+apples). Untouched ground draws the top block and the sides exposed by lower
+neighbours; where someone dug or built, every layer is checked for an exposed face sharing two geometries and one `MeshStandardMaterial`; colors are per
 instance. Each block's matrix maps the unit cube onto its exact cell on the
 sphere (edge vectors to the neighbouring column centres), so blocks tile with no
 gaps even where the cube faces meet. Fog matches the sky so streaming happens

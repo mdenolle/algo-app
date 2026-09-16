@@ -42,7 +42,7 @@ export class PlayerController {
 
   respawn(direction) {
     const column = this.world.column(direction);
-    this.position.fromArray(direction).multiplyScalar(this.radius + column.solid);
+    this.position.fromArray(direction).multiplyScalar(this.radius + column.resolved.h);
     this.up.fromArray(direction);
     const { north } = tangentBasis(direction);
     this.forward.fromArray(north);
@@ -61,7 +61,7 @@ export class PlayerController {
   }
 
   groundRadius(vector) {
-    return this.world.floorRadius(vector);
+    return this.world.floorAt(vector);
   }
 
   update(dt, input, cameraYaw) {
@@ -91,18 +91,21 @@ export class PlayerController {
     if (this.moving) {
       trial.copy(this.position).addScaledVector(move, speed * dt);
       const there = this.world.column(trial.clone().normalize());
-      const drop = r - (R + there.solid);
-      const edgeSafe = !this.crawling || drop <= 1.05 || there.swim;   // crawling: never off a ledge
-      if (R + there.solid - r <= (inWater ? this.climbOutHeight : this.stepHeight) && edgeSafe) {
-        this.position.copy(trial);
+      const step = this.world.walkInto(there, r, this.height, inWater ? this.climbOutHeight : this.stepHeight);
+      const floorThere = this.world.floorRadius(there, this.world.layerOf(step.r));
+      const edgeSafe = !this.crawling || step.r - floorThere <= 1.05 || there.swim;   // crawling: never off a ledge
+      if (step.ok && edgeSafe) {
+        this.position.copy(trial).setLength(step.r);
+        r = step.r;
         this.facing.copy(move).normalize();
         column = there;
       }
-      // else: a wall two or more blocks high; stay put this frame.
+      // else: a wall two or more blocks high, or a ledge while crawling; stay put this frame.
     }
 
     this.up.copy(this.position).normalize();
-    const floor = R + column.solid;
+    const floor = this.world.floorRadius(column, this.world.layerOf(r));
+    const ceiling = this.world.ceilingRadius(column, this.world.layerOf(r));
     const wasGrounded = this.grounded;
 
     // At the surface, the jump button jumps you out of the water (onto a shore, a boat, anything).
@@ -120,11 +123,13 @@ export class PlayerController {
       r += this.velocityUp * dt;
       if (r > waterR) { r = waterR; this.velocityUp = Math.min(0, this.velocityUp); }
       if (r < floor) { r = floor; this.velocityUp = 0; }
+      if (r + this.height > ceiling) r = ceiling - this.height;
       this.grounded = false;
       this.inWater = true;
     } else {
       this.velocityUp -= this.gravity * dt;
       r += this.velocityUp * dt;
+      if (r + this.height > ceiling) { r = ceiling - this.height; this.velocityUp = Math.min(0, this.velocityUp); }   // bumped your head
       if (r <= floor) {
         if (!wasGrounded && !this.inWater && this.velocityUp < 0) this.lastImpact = -this.velocityUp;
         r = floor;

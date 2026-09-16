@@ -115,7 +115,7 @@ export class MobManager {
   spawn(typeKey, direction) {
     const type = MOB_TYPES[typeKey];
     const column = this.world.column(direction);
-    const r = this.world.radius + Math.max(column.solid, column.swim ? this.world.config.seaLevel : column.solid);
+    const r = this.world.radius + Math.max(column.resolved.h, column.swim ? this.world.config.seaLevel : column.resolved.h);
     const mesh = createMobMesh(typeKey);
     this.scene.add(mesh);
     const { north } = tangentBasis(direction);
@@ -210,7 +210,7 @@ export class MobManager {
           const { east, north } = tangentBasis(p.direction());
           const spot = this.tmp.w.copy(p.position).addScaledVector(this.tmp.x.fromArray(east), Math.cos(angle) * 6).addScaledVector(this.tmp.x.fromArray(north), Math.sin(angle) * 6).normalize();
           const col = this.world.column([spot.x, spot.y, spot.z]);
-          mob.position.copy(spot).multiplyScalar(R + Math.max(col.solid, this.world.config.seaLevel) + 0.1);
+          mob.position.copy(spot).multiplyScalar(R + Math.max(col.resolved.h, this.world.config.seaLevel) + 0.1);
           this.game.say('The Everything Zombie is behind you!', 1.5);
         }
       }
@@ -238,22 +238,24 @@ export class MobManager {
     let column = this.world.column([mob.up.x, mob.up.y, mob.up.z]);
     const inWater = column.swim && r < waterR + 0.05;
     if (inWater && type.habitat !== 'water') speed *= 0.6;
+    const height = type.kind === 'animal' ? 1.2 * type.size : 2.4;
     if (speed > 0) {
       const trial = this.tmp.w.copy(mob.position).addScaledVector(mob.facing, speed * dt);
       const there = this.world.column(trial.clone().normalize());
-      const rise = R + there.solid - r;
-      const drop = r - (R + there.solid);
-      const ok = rise <= 1.05
+      const step = this.world.walkInto(there, r, height);
+      const floorThere = this.world.floorRadius(there, this.world.layerOf(step.r));
+      const drop = step.r - floorThere;
+      const ok = step.ok
         && !(type.kind === 'animal' && (there.swim || drop > 3))
         && !(type.habitat === 'water' && !there.swim)
-        && !(type.habitat !== 'water' && there.swim && there.solid < this.world.config.seaLevel - 3 && type.kind === 'zombie' && !inWater);
-      if (ok) { mob.position.copy(trial); column = there; mob.blocked = 0; }
+        && !(type.habitat !== 'water' && there.swim && there.resolved.h < this.world.config.seaLevel - 3 && type.kind === 'zombie' && !inWater);
+      if (ok) { mob.position.copy(trial).setLength(step.r); r = step.r; column = there; mob.blocked = 0; }
       else { mob.blocked = (mob.blocked ?? 0) + dt; if (mob.blocked > 1 && !(type.kind === 'zombie' && mob.mode === 'chase')) { this.#turn(mob, Math.PI / 2 + this.random() * Math.PI); mob.blocked = 0; } }
     }
     mob.up.copy(mob.position).normalize();
 
     // Gravity, or floating in water.
-    const floor = R + column.solid;
+    const floor = this.world.floorRadius(column, this.world.layerOf(r));
     if (column.swim && r < waterR + 0.05) {
       r = Math.min(waterR, Math.max(floor, r + (waterR - r) * dt * 2));
       mob.velocityUp = 0; mob.grounded = false; mob.inWater = true;
@@ -316,7 +318,8 @@ export class MobManager {
     away.addScaledVector(mob.up, -away.dot(mob.up)).normalize();
     const trial = this.tmp.w.copy(mob.position).addScaledVector(away, 1.4);
     const there = this.world.column(trial.clone().normalize());
-    if (this.world.radius + there.solid - mob.position.length() <= 1.05) mob.position.copy(trial);
+    const step = this.world.walkInto(there, mob.position.length(), mob.type.kind === 'animal' ? 1.2 * mob.type.size : 2.4);
+    if (step.ok) mob.position.copy(trial).setLength(step.r);
     if (mob.hp <= 0) {
       this.remove(mob);
       return { defeated: true, drop: mob.type.drop, name: mob.type.name };

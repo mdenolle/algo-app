@@ -1,8 +1,8 @@
 // Web Worker: turns one chunk address into instance data for the renderer.
 // No three.js here; we emit raw column-major 4×4 matrices and linear RGB colors.
-// Per column: the top solid block (studded), exposed side blocks down to the
-// lowest neighbour (plain), a translucent water surface for sea columns, and an
-// apple where one grows. Player edits arrive with the request.
+// Every block with an exposed face is drawn: for untouched ground that is the top
+// block plus the side blocks down to the lowest neighbour; where the player has
+// dug or built, every layer is checked. Water is a translucent sheet at sea level.
 
 import { createTerrain } from './terrain.js';
 import { columnDirection, neighbourDirection, columnOf } from './planet.js';
@@ -37,17 +37,17 @@ export function buildChunk(face, cx, cy, config, terrain, edits, picked) {
   const dir = [0, 0, 0], dirU = [0, 0, 0], dirV = [0, 0, 0], nd = [0, 0, 0];
   const cache = new Map();
 
-  // Solid height of any column (this chunk or a neighbour), with edits applied.
-  const solidAt = (f, i, j, d) => {
+  // Resolved column (this chunk or a neighbour), with edits applied.
+  const resolve = (f, i, j, d) => {
     const key = columnKey(f, i, j);
-    let solid = cache.get(key);
-    if (solid === undefined) {
+    let entry = cache.get(key);
+    if (!entry) {
       const natural = terrain.sample(d);
-      const resolved = resolveColumn(natural, edits.get(key), seaLevel);
-      solid = resolved.frozen ? seaLevel : resolved.h;
-      cache.set(key, solid);
+      const edit = edits.get(key);
+      entry = { resolved: resolveColumn(natural, edit, seaLevel, columnSeed(config.seed, f, i, j)), edited: Boolean(edit), natural, key };
+      cache.set(key, entry);
     }
-    return solid;
+    return entry;
   };
 
   const push = (list, k, material) => {
@@ -64,28 +64,44 @@ export function buildChunk(face, cx, cy, config, terrain, edits, picked) {
   for (let j = 0; j < N; j += 1) {
     for (let i = 0; i < N; i += 1) {
       const ci = i0 + i, cj = j0 + j;
-      const key = columnKey(face, ci, cj);
       columnDirection(face, ci, cj, F, dir);
       neighbourDirection(face, ci, cj, 1, 0, F, dirU);
       neighbourDirection(face, ci, cj, 0, 1, F, dirV);
-      const natural = terrain.sample(dir);
-      const edit = edits.get(key);
-      const resolved = resolveColumn(natural, edit, seaLevel, columnSeed(config.seed, face, ci, cj));
-      const solid = resolved.frozen ? seaLevel : resolved.h;
-      cache.set(key, solid);
+      const here = resolve(face, ci, cj, dir);
+      const col = here.resolved;
 
-      let lowest = solid;
+      const neighbours = [];
+      let lowest = col.top, edited = here.edited;
       for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         neighbourDirection(face, ci, cj, di, dj, F, nd);
         const c = columnOf(nd, F);
-        lowest = Math.min(lowest, solidAt(c.face, c.i, c.j, nd));
+        const n = resolve(c.face, c.i, c.j, nd);
+        neighbours.push(n.resolved);
+        lowest = Math.min(lowest, n.resolved.top);
+        edited = edited || n.edited;
       }
 
-      const topMaterial = resolved.frozen ? MATERIAL.ice : resolved.top;
-      push(listFor(topMaterial, top), solid - 1, topMaterial);
-      for (let k = solid - 2; k >= lowest; k -= 1) { const m = resolved.layer(k); push(listFor(m, fill), k, m); }
-      if (resolved.water && !resolved.frozen) push(water, seaLevel - 1, MATERIAL.water);
-      if (!resolved.water && !edit && !picked.has(key) && hasApple(config.seed, face, ci, cj, natural)) push(apples, solid - 0.2, MATERIAL.water);
+      if (!edited) {
+        // Untouched ground: the top block, then the sides exposed by lower neighbours.
+        if (col.top >= 0) {
+          const topMaterial = col.frozen ? MATERIAL.ice : col.material(col.top);
+          push(listFor(topMaterial, top), col.top, topMaterial);
+          for (let k = col.top - 1; k > lowest; k -= 1) { const m = col.material(k); push(listFor(m, fill), k, m); }
+        }
+      } else {
+        // Somebody built or dug here: draw every block that has any face in the open.
+        const highest = Math.max(col.top, ...neighbours.map(n => n.top));
+        for (let k = 0; k <= highest; k += 1) {
+          const m = col.material(k);
+          if (m === null) continue;
+          const exposed = !col.solid(k + 1) || (k > 0 && !col.solid(k - 1)) || neighbours.some(n => !n.solid(k));
+          if (!exposed) continue;
+          const studded = !col.solid(k + 1);
+          push(listFor(m, studded ? top : fill), k, m);
+        }
+      }
+      if (col.water) push(water, seaLevel - 1, MATERIAL.water);
+      if (!col.water && !here.edited && !picked.has(here.key) && hasApple(config.seed, face, ci, cj, here.natural)) push(apples, col.top + 0.8, MATERIAL.water);
     }
   }
 

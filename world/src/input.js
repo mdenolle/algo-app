@@ -37,11 +37,11 @@ export class Input {
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.pointers.size === 1) {
         this.press = { id: e.pointerId, x: e.clientX, y: e.clientY, time: performance.now(), button: e.button, touch: e.pointerType === 'touch', moved: false, done: false };
-        // Touch: a held finger builds after 450 ms, on a timer, because Android
-        // cancels the pointer for its own long-press gesture before pointerup.
+        // Touch: a tap places a block, a held finger (450 ms) breaks one. The hold is on
+        // a timer because Android cancels the pointer for its own long-press gesture.
         if (this.press.touch) {
           const press = this.press;
-          setTimeout(() => { if (this.press === press && !press.moved && !press.done) { press.done = true; this.actions.push({ type: 'build', x: press.x, y: press.y }); } }, 450);
+          setTimeout(() => { if (this.press === press && !press.moved && !press.done) { press.done = true; this.actions.push({ type: 'dig', x: press.x, y: press.y }); } }, 450);
         }
       }
     });
@@ -70,7 +70,7 @@ export class Input {
       if (press && e.pointerId === press.id) {
         this.press = null;
         if (!press.moved && !press.done && e.type === 'pointerup') {
-          if (press.touch) this.actions.push({ type: 'dig', x: press.x, y: press.y });
+          if (press.touch) this.actions.push({ type: 'build', x: press.x, y: press.y });
           else this.actions.push({ type: press.button === 2 ? 'build' : 'dig', x: press.x, y: press.y });
         }
       }

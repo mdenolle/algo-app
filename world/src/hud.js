@@ -60,7 +60,7 @@ export class Hud {
     this.hurtUntil = 0;
     this.touch = window.matchMedia('(pointer: coarse)').matches;
     const controls = this.touch
-      ? [['joystick', 'move'], ['drag', 'look around'], ['JUMP', 'jump; in water: swim up, hop out'], ['tap', 'dig that block, or hit a zombie'], ['hold', 'build the block you picked there'], ['CRAWL', 'slow and safe at edges'], ['EAT', 'eat an apple or meat'], ['BLOCKS', 'the block book']]
+      ? [['joystick', 'move'], ['drag', 'look around'], ['JUMP', 'jump; in water: swim up, hop out'], ['tap', 'build the block you picked there'], ['hold', 'break that block, or hit a zombie'], ['CRAWL', 'slow and safe at edges'], ['EAT', 'eat an apple or meat'], ['BLOCKS', 'the block book']]
       : [['W A S D', 'move (or arrows)'], ['mouse', 'drag to look, wheel to zoom'], ['Space', 'jump; in water: swim up, hop out'], ['click', 'dig that block, or hit a zombie'], ['right-click', 'build the block you picked there'], ['C', 'crawl: slow and safe at edges'], ['1 – 9 · B', 'pick a block · block book'], ['F', 'eat an apple or meat']];
     this.el.controls.innerHTML = controls.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
     this.tipsUntil = 0;
@@ -119,7 +119,7 @@ export class Hud {
     this.el.start.hidden = true;
     this.el.gameover.hidden = true;
     this.showTips(this.touch
-      ? 'Left joystick: walk  ·  drag: look around\nTap a block: dig  ·  hold: build  ·  JUMP: jump or swim'
+      ? 'Left joystick: walk  ·  drag: look around\nTap: build there  ·  hold: break  ·  JUMP: jump or swim'
       : 'W A S D: walk  ·  drag the mouse: look around\nclick: dig  ·  right-click: build  ·  Space: jump or swim', 14);
   }
 
