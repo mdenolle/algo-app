@@ -44,7 +44,8 @@ export function buildChunk(face, cx, cy, config, terrain, edits, picked) {
     if (!entry) {
       const natural = terrain.sample(d);
       const edit = edits.get(key);
-      entry = { resolved: resolveColumn(natural, edit, seaLevel, columnSeed(config.seed, f, i, j)), edited: Boolean(edit), natural, key };
+      // Buildings have air inside them, so village columns take the per-layer path like edited ones.
+      entry = { resolved: resolveColumn(natural, edit, seaLevel, columnSeed(config.seed, f, i, j)), edited: Boolean(edit) || Boolean(natural.structure), natural, key };
       cache.set(key, entry);
     }
     return entry;
@@ -86,7 +87,7 @@ export function buildChunk(face, cx, cy, config, terrain, edits, picked) {
         if (col.top >= 0) {
           const topMaterial = col.frozen ? MATERIAL.ice : col.material(col.top);
           push(listFor(topMaterial, top), col.top, topMaterial);
-          for (let k = col.top - 1; k > lowest; k -= 1) { const m = col.material(k); push(listFor(m, fill), k, m); }
+          for (let k = col.top - 1; k > lowest; k -= 1) { const m = col.material(k); if (m !== null) push(listFor(m, fill), k, m); }
         }
       } else {
         // Somebody built or dug here: draw every block that has any face in the open.

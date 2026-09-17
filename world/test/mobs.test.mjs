@@ -6,7 +6,7 @@ import { RULES, freshVitals, stepVitals, hurt, eat } from '../src/rules.js';
 
 test('every mob type is complete and every drop is a real item', () => {
   for (const [key, type] of Object.entries(MOB_TYPES)) {
-    assert.ok(['animal', 'zombie'].includes(type.kind), key);
+    assert.ok(['animal', 'zombie', 'villager'].includes(type.kind), key);
     assert.ok(type.hp > 0 && type.speed > 0 && type.name, key);
     if (type.kind === 'zombie') assert.ok(type.damage > 0 && type.habitat, key);
   }
@@ -14,9 +14,10 @@ test('every mob type is complete and every drop is a real item', () => {
   assert.ok(MOB_TYPES.chaosZombie.chaos);
 });
 
-test('zombies are a night thing', () => {
+test('zombies are a night thing, and more of them on harder settings', () => {
   assert.ok(spawnTargets(1).zombies < spawnTargets(0).zombies);
   assert.equal(spawnTargets(0.9).animals, spawnTargets(0.1).animals);
+  assert.ok(spawnTargets(0, { zombies: 2.5 }).zombies > spawnTargets(0, { zombies: 1 }).zombies);
 });
 
 test('the zombie for a place: water in the sea, ice in the cold, otherwise fire, electric or the Everything Zombie', () => {
@@ -26,8 +27,11 @@ test('the zombie for a place: water in the sea, ice in the cold, otherwise fire,
   assert.equal(zombieTypeFor(sea, 0.1), 'waterZombie');
   assert.equal(zombieTypeFor(snow, 0.1), 'iceZombie');
   assert.equal(zombieTypeFor(plains, 0.1), 'fireZombie');
-  assert.equal(zombieTypeFor(plains, 0.7), 'electricZombie');
-  assert.equal(zombieTypeFor(plains, 0.95), 'chaosZombie');
+  assert.equal(zombieTypeFor(plains, 0.5), 'electricZombie');
+  assert.equal(zombieTypeFor(plains, 0.75), 'chaosZombie');
+  assert.equal(zombieTypeFor(plains, 0.9, true), 'skyZombie', 'sky zombies at night');
+  assert.equal(zombieTypeFor(plains, 0.9, false), 'chaosZombie', 'none by day');
+  assert.equal(zombieTypeFor(snow, 0.9, true), 'skyZombie');
 });
 
 test('zombie modes by distance; electric zombies zap from afar', () => {

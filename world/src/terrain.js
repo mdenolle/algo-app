@@ -11,6 +11,7 @@
 import { createNoise } from './noise.js';
 import { MATERIAL } from './materials.js';
 import { tangentBasis, normalize } from './planet.js';
+import { findVillageSite, villageAt, withBasis } from './village.js';
 
 const LAND_THRESHOLD = 0.06;
 const COLD_START = 0.64;
@@ -25,7 +26,7 @@ export function createTerrain(config) {
   const maxLand = maxHeight - seaLevel;
 
   /** Everything about one column: height in blocks above the planet radius, surface material, water flag. */
-  function sample(d) {
+  function sampleNatural(d) {
     const x = d[0], y = d[1], z = d[2];
     const continent = noise.fbm(x * 1.6 + 11.3, y * 1.6 - 4.2, z * 1.6 + 7.7, 5);
     const hills = noise.fbm(x * 7 + 3.1, y * 7 + 9.4, z * 7 - 2.5, 4, 2.1);
@@ -59,6 +60,22 @@ export function createTerrain(config) {
     return { height, material, water: false, cold, landness };
   }
 
+  // The village is placed once, lazily, from the spawn point.
+  let village = null, villageSearched = false;
+  const radius = (2 * config.faceResolution) / Math.PI;
+  function villageSite() {
+    if (!villageSearched) { villageSearched = true; village = withBasis(findVillageSite({ sampleNatural }, findSpawnNatural(), radius)); }
+    return village;
+  }
+
+  /** Natural column plus the village where there is one: flattened ground and building layers. */
+  function sample(d) {
+    const natural = sampleNatural(d);
+    const v = villageAt(villageSite(), d, radius);
+    if (!v) return natural;
+    return { ...natural, height: v.height, material: v.material, water: false, structure: v.structure };
+  }
+
   /** Radial height (blocks above planet radius) a walker stands on. Water is walkable for now; boats later. */
   function surfaceHeight(d) {
     const column = sample(d);
@@ -66,7 +83,7 @@ export function createTerrain(config) {
   }
 
   /** Nearest grassy land to a preferred direction, searched on an outward square spiral. */
-  function findSpawn(preferred = [0.3, 0.2, 1], maxSteps = 400) {
+  function findSpawnNatural(preferred = [0.3, 0.2, 1], maxSteps = 400) {
     const start = normalize([...preferred]);
     const { east, north } = tangentBasis(start);
     const radius = (2 * config.faceResolution) / Math.PI;
@@ -81,11 +98,11 @@ export function createTerrain(config) {
     // Grass, above the beach, and flat for ~5 blocks around so the camera has room.
     const tryPoint = (a, b) => {
       at(a, b, point);
-      const column = sample(point);
+      const column = sampleNatural(point);
       if (column.water || column.material !== MATERIAL.grass || column.height < seaLevel + 3) return null;
       for (let da = -5; da <= 5; da += 5) {
         for (let db = -5; db <= 5; db += 5) {
-          const near = sample(at(a + da, b + db, probe));
+          const near = sampleNatural(at(a + da, b + db, probe));
           if (near.water || Math.abs(near.height - column.height) > 1) return null;
         }
       }
@@ -103,5 +120,6 @@ export function createTerrain(config) {
     return start;
   }
 
-  return { sample, surfaceHeight, findSpawn, seaLevel };
+  const findSpawn = (...args) => findSpawnNatural(...args);
+  return { sample, sampleNatural, surfaceHeight, findSpawn, villageSite, seaLevel };
 }

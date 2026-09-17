@@ -17,6 +17,11 @@
     @media (max-height: 520px) { #menu-button { display: block; top: 8px; } }
     .card .secondary { margin-top: 10px; background: #e3f3ff; color: #0754a6; box-shadow: 0 4px 0 #bfe0ff; font-size: 15px; }
     .card .danger { margin-top: 10px; background: #ffe0e0; color: #a52626; box-shadow: 0 4px 0 #f3b3b3; font-size: 15px; }
+    .difficulty { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-weight: 800; font-size: 13px; }
+    .difficulty span { flex: 1; color: #65758b; }
+    .difficulty button { width: auto; padding: 8px 12px; font-size: 13px; background: #e3f3ff; color: #0754a6; box-shadow: 0 3px 0 #bfe0ff; }
+    .difficulty button.on { background: #ffd524; color: #3a3a27; box-shadow: 0 3px 0 #d9ad20; }
+    .difficulty button[data-difficulty="nightmare"].on { background: #ec3d3d; color: white; box-shadow: 0 3px 0 #b52626; }
     .card .confirm { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff1c0; color: #856300; font-weight: 800; font-size: 13px; }
     .card .confirm[data-open] { display: block; }
     .card .confirm button { margin-top: 8px; font-size: 14px; }
@@ -159,6 +164,7 @@
   <div id="menu" class="overlay" hidden><div class="card"><h1>Menu</h1>
     <button id="menu-continue">Continue ▶</button>
     <button class="secondary" id="menu-help">How to play</button>
+    <div class="difficulty"><span>Difficulty</span><button data-difficulty="normal">Normal</button><button data-difficulty="hard">Hard</button><button data-difficulty="nightmare">Nightmare</button></div>
     <button class="secondary" id="menu-new">🌍 New planet (a brand-new world)</button>
     <button class="danger" id="menu-restart">Restart this planet from scratch</button>
     <div class="confirm" id="menu-confirm">Really? Everything you built on this planet and your life will be erased.<br><button class="danger" id="menu-restart-yes">Yes, erase it all</button> <button class="secondary" id="menu-restart-no">No, keep it</button></div>

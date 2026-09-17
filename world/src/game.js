@@ -3,7 +3,7 @@
 // rules.js; this wires them to the world, the player and the renderer.
 
 import { MATERIAL, MATERIALS } from './materials.js';
-import { RULES, freshVitals, stepVitals, applyFallDamage, eat, hurt } from './rules.js';
+import { RULES, DIFFICULTY, freshVitals, stepVitals, applyFallDamage, eat, hurt } from './rules.js';
 import { TOOLS, RECIPES, canCraft, craft, hitBlock, hitDamage } from './tools.js';
 import { say, hasClip } from './voice.js';
 
@@ -32,8 +32,9 @@ export function freshLife() {
     hotbar: [...DEFAULT_HOTBAR],
     selected: 2,                    // planks: something you can build with right away
     status: { burning: 0, frozen: 0 },   // seconds left
+    difficulty: 'normal',
     time: 54,                             // planet clock in seconds; DAY_LENGTH per day, starts in the morning
-    stats: { dug: 0, built: 0, eaten: 0, applesFound: 0, oresFound: 0, explosions: 0, zombiesBeaten: 0, startedAt: Date.now(), survived: 0 },
+    stats: { dug: 0, built: 0, eaten: 0, applesFound: 0, oresFound: 0, explosions: 0, zombiesBeaten: 0, villagersOwned: 0, villagesRuled: 0, startedAt: Date.now(), survived: 0 },
   };
 }
 
@@ -66,6 +67,14 @@ export class Game {
   }
 
   get vitals() { return this.life.vitals; }
+  get difficulty() { return DIFFICULTY[this.life.difficulty] ?? DIFFICULTY.normal; }
+  setDifficulty(level) {
+    if (!DIFFICULTY[level]) return;
+    this.life.difficulty = level;
+    const cap = this.difficulty.hearts;
+    if (this.vitals.health > cap) this.life.vitals = { ...this.vitals, health: cap };
+    this.say(`${DIFFICULTY[level].label} mode`, 1.5);
+  }
   get inventory() { return this.life.inventory; }
   get selectedSlot() { return BLOCK_BY_KEY.get(this.life.hotbar[this.life.selected]); }
 
@@ -103,7 +112,8 @@ export class Game {
     status.frozen = Math.max(0, status.frozen - dt);
     p.speedMultiplier = (status.frozen > 0 ? RULES.frozenSpeed : 1) * (p.crawling ? 0.45 : 1);
 
-    const { vitals, events } = stepVitals(this.vitals, dt, { submerged: p.submerged, running: input.run, moving: p.moving, onLava, burning: status.burning > 0 });
+    const { vitals, events } = stepVitals(this.vitals, dt, { submerged: p.submerged, running: input.run, moving: p.moving, onLava, burning: status.burning > 0, hungerScale: this.difficulty.hunger, healScale: this.difficulty.heal });
+    if (vitals.health > this.difficulty.hearts) vitals.health = this.difficulty.hearts;
     this.life.vitals = vitals;
     if (events.includes('drowning') && Math.random() < dt * 0.7) this.say('Air! Swim up!', 1);
     if (events.includes('starving') && Math.random() < dt * 0.4) this.say('So hungry… find an apple', 1.5);
@@ -265,9 +275,11 @@ export class Game {
   /** The player hits a mob: bare hands do 1, swords more. */
   hitMob(mobs, mob) {
     const result = mobs.hit(mob, hitDamage(this.life.hotbar[this.life.selected]));
+    if (result.friendly) { this.say('That one is yours! It follows you and fights for you.', 1.5); return false; }
     if (result.defeated) {
       if (result.drop) { this.inventory[result.drop] = (this.inventory[result.drop] ?? 0) + 1; }
       if (mob.type.kind === 'zombie') this.life.stats.zombiesBeaten += 1;
+      if (mob.type.chief) this.say('You beat the Chief… but a trapped Chief would have given you the village.', 3);
       const dropBlock = result.drop ? BLOCK_BY_KEY.get(result.drop) : null;
       this.say(`${result.name} down!${dropBlock ? ` You got ${dropBlock.label.toLowerCase()} ${dropBlock.emoji ?? ''}` : ''}`, 2);
     } else {
@@ -308,6 +320,8 @@ export const RULE_SUMMARY = [
   'Click or tap a spot to BUILD there. Hold the button or your finger on a block to BREAK it (or use DIG / BUILD).',
   'Hard blocks take more hits. Stone needs a pickaxe; ores need a stone one; diamond an iron one; obsidian a diamond one. Make tools in the block book (B).',
   'Swords hit zombies harder. You start with a wooden pickaxe and a wooden sword.',
+  'A village has a Chief who rules it. Wall a villager in and it becomes yours: it follows you and fights for you. Trap the Chief: the whole village is yours.',
+  'Sky zombies fly over your walls at night. Normal, Hard or Nightmare in the menu (Escape / MENU).',
   'Ores hide deep in the stone: coal, iron, gold, redstone, lapis, emerald, diamond, obsidian. Dig down to find them.',
 ];
 

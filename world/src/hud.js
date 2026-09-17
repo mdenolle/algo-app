@@ -14,7 +14,7 @@ function blockIcon(block, big = false) {
 }
 
 export class Hud {
-  constructor(root, { onPlay, onRetry, onSelect, onAssign, onRestart, onNewPlanet, onMake, seed }) {
+  constructor(root, { onPlay, onRetry, onSelect, onAssign, onRestart, onNewPlanet, onMake, onDifficulty, seed }) {
     this.el = {
       hearts: root.querySelector('#hearts'),
       hungerFill: root.querySelector('#hunger-fill'),
@@ -57,6 +57,8 @@ export class Hud {
     root.querySelector('#menu-restart').addEventListener('click', () => { this.el.menuConfirm.dataset.open = '1'; });
     root.querySelector('#menu-restart-no').addEventListener('click', () => { delete this.el.menuConfirm.dataset.open; });
     root.querySelector('#menu-restart-yes').addEventListener('click', onRestart);
+    this.difficultyButtons = [...root.querySelectorAll('[data-difficulty]')];
+    this.difficultyButtons.forEach(b => b.addEventListener('click', () => onDifficulty(b.dataset.difficulty)));
     this.openMenu = openMenu;
     this.lastHealth = null;
     this.hurtUntil = 0;
@@ -153,6 +155,8 @@ export class Hud {
       ['Apples eaten', stats.eaten],
       ['Ores found', stats.oresFound ?? 0],
       ['Zombies beaten', stats.zombiesBeaten ?? 0],
+      ['Villagers yours', stats.villagersOwned ?? 0],
+      ['Villages ruled', stats.villagesRuled ?? 0],
     ].map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
     this.el.gameover.hidden = false;
   }
@@ -167,7 +171,9 @@ export class Hud {
     if (this.el.daynight.textContent !== dayIcon) this.el.daynight.textContent = dayIcon;
     const jumpLabel = player.inWater ? 'SWIM ▲' : 'JUMP';
     if (this.el.jump.textContent !== jumpLabel) this.el.jump.textContent = jumpLabel;
-    const hearts = Array.from({ length: RULES.maxHealth }, (_, i) => (v.health >= i + 1 ? '❤️' : v.health > i ? '🧡' : '🖤')).join('');
+    const maxHearts = game.difficulty?.hearts ?? RULES.maxHealth;
+    const hearts = Array.from({ length: maxHearts }, (_, i) => (v.health >= i + 1 ? '❤️' : v.health > i ? '🧡' : '🖤')).join('');
+    if (this.menuOpen) this.difficultyButtons.forEach(b => b.classList.toggle('on', b.dataset.difficulty === game.life.difficulty));
     if (hearts !== this.lastHearts) { this.el.hearts.textContent = hearts; this.lastHearts = hearts; }
     this.el.hungerFill.style.width = `${(v.hunger / RULES.maxHunger) * 100}%`;
     this.el.hungerFill.classList.toggle('low', v.hunger < 25);

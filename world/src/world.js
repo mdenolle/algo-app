@@ -83,6 +83,19 @@ export class World {
     return { ok: false, r };
   }
 
+  /**
+   * Moving diagonally between two columns must not squeeze between two blocks
+   * touching at a corner: if both orthogonal neighbours are solid at the body's
+   * layers, the way is blocked. Used by mobs so a four-block trap holds.
+   */
+  cornerCut(from, to, r, height) {
+    if (from.face !== to.face) return false;
+    const di = to.i - from.i, dj = to.j - from.j;
+    if (di === 0 || dj === 0) return false;
+    const a = this.columnAt(from.face, from.i + di, from.j), b = this.columnAt(from.face, from.i, from.j + dj);
+    return !this.headroom(a, r, height) && !this.headroom(b, r, height);
+  }
+
   /** Floor under a world-space point (for the camera): the highest block below it. */
   floorAt(point) {
     const len = Math.hypot(point.x, point.y, point.z);

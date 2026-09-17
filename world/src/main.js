@@ -78,6 +78,7 @@ const hud = new Hud(document, {
   onSelect: index => game.select(index),
   onAssign: key => game.assign(key),
   onMake: recipe => game.make(recipe),
+  onDifficulty: level => game.setDifficulty(level),
   onRestart: () => { persistence.clear(config.seed); reloadWorld({ reset: 1 }); },
   onNewPlanet: () => {
     const seed = Math.floor(1000 + Math.random() * 9_000_000);

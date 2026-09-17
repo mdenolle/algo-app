@@ -46,6 +46,8 @@ export function oreAt(oreSeed, k) {
 /** Material of the natural block at layer k, or null where the natural column has no block. */
 export function naturalLayerMaterial(natural, k, seaLevel = Infinity, oreSeed = null) {
   const top = natural.height - 1;
+  const st = natural.structure;
+  if (st && k >= st.base && k < st.base + st.layers.length) return st.layers[k - st.base];
   const stone = () => (oreSeed === null ? MATERIAL.stone : oreAt(oreSeed, k));
   if (natural.water) {
     if (natural.material === MATERIAL.ice && k > top && k < seaLevel) return MATERIAL.ice;   // frozen sea
@@ -90,8 +92,9 @@ export function resolveColumn(natural, edit, seaLevel, oreSeed = null) {
   };
   const solid = k => material(k) !== null;
 
-  // Highest solid layer: start from the natural top / ice sheet / highest placed block.
+  // Highest solid layer: start from the natural top / ice sheet / building / highest placed block.
   let top = isIce && !thawed ? seaLevel - 1 : naturalTop;
+  if (natural.structure) top = Math.max(top, natural.structure.base + natural.structure.layers.length - 1);
   if (placed) for (const k of Object.keys(placed)) top = Math.max(top, Number(k));
   while (top >= 0 && !solid(top)) top -= 1;
 

@@ -25,6 +25,13 @@ export const RULES = Object.freeze({
   lives: 1,
 });
 
+/** Difficulty settings: multipliers on zombie numbers, their damage, hunger speed and healing. */
+export const DIFFICULTY = Object.freeze({
+  normal: { label: 'Normal', zombies: 1, damage: 1, hunger: 1, heal: 1, hearts: 10 },
+  hard: { label: 'Hard', zombies: 1.6, damage: 1.5, hunger: 1.3, heal: 0.7, hearts: 10 },
+  nightmare: { label: 'Nightmare', zombies: 2.5, damage: 2, hunger: 1.6, heal: 0.4, hearts: 7 },
+});
+
 export function freshVitals() {
   return { health: RULES.maxHealth, hunger: RULES.maxHunger, air: RULES.maxAir, alive: true, causeOfDeath: null };
 }
@@ -42,7 +49,7 @@ export function stepVitals(vitals, dt, context) {
   let { health, hunger, air } = vitals;
   let causeOfDeath = null;
 
-  const drain = RULES.hungerPerSecond * (context.running && context.moving ? RULES.runHungerMultiplier : 1);
+  const drain = RULES.hungerPerSecond * (context.running && context.moving ? RULES.runHungerMultiplier : 1) * (context.hungerScale ?? 1);
   hunger = clamp(hunger - drain * dt, 0, RULES.maxHunger);
 
   if (context.submerged) {
@@ -62,7 +69,7 @@ export function stepVitals(vitals, dt, context) {
     events.push('starving');
     if (health <= 0 && !causeOfDeath) causeOfDeath = 'starved';
   } else if (hunger >= RULES.healHungerThreshold && health < RULES.maxHealth && !context.submerged && !context.burning && !context.onLava) {
-    health = clamp(health + RULES.healPerSecond * dt, 0, RULES.maxHealth);
+    health = clamp(health + RULES.healPerSecond * (context.healScale ?? 1) * dt, 0, RULES.maxHealth);
   }
 
   health = clamp(health, 0, RULES.maxHealth);
