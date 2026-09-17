@@ -146,6 +146,23 @@ function mobFor(action) {
   return mobs.pick(ray.origin, ray.direction, reach);
 }
 
+const compassTmp = new THREE.Vector3();
+function updateCompass() {
+  const site = world.terrain.villageSite();
+  if (!site || !game.started) { hud.setCompass(null); return; }
+  compassTmp.set(site.direction[0], site.direction[1], site.direction[2]).multiplyScalar(world.radius).sub(player.position);
+  compassTmp.addScaledVector(player.up, -compassTmp.dot(player.up));
+  const dot = player.up.x * site.direction[0] + player.up.y * site.direction[1] + player.up.z * site.direction[2];
+  const distance = Math.acos(Math.min(1, dot)) * world.radius;
+  if (distance < 14) { hud.setCompass(null); return; }
+  // Bearing relative to the camera's forward, in the tangent plane: 0 = straight ahead.
+  renderer.camera.getWorldDirection(cameraForward);
+  cameraForward.addScaledVector(player.up, -cameraForward.dot(player.up)).normalize();
+  const right = compassTmp.clone().crossVectors(player.up, cameraForward).normalize();
+  const bearing = Math.atan2(compassTmp.dot(right), compassTmp.dot(cameraForward));
+  hud.setCompass(mobs.followers.length ? 'Your village' : 'Village', bearing, distance);
+}
+
 function handleActions(actions) {
   for (const raw of actions) {
     const action = typeof raw === 'string' ? { type: raw } : raw;
@@ -219,6 +236,7 @@ function frame(now) {
   saveTimer += dt;
   if (saveTimer > 5 && game.started) { saveTimer = 0; persistence.save(config.seed, world, game, cameraController); }
 
+  updateCompass();
   renderer.render();
   hud.update(game, player, day);
   if ((now | 0) % 4 === 0) updateStats();

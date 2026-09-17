@@ -10,12 +10,12 @@ import { normalize } from '../src/planet.js';
 const world = new World(DEFAULT_CONFIG);
 const site = world.terrain.villageSite();
 
-test('the planet has a village on flat grass, 60–140 blocks from the spawn', () => {
+test('the planet has a village on flat grass, 40–110 blocks from the spawn', () => {
   assert.ok(site, 'a village site');
   const spawn = world.terrain.findSpawn();
   const dot = spawn[0] * site.direction[0] + spawn[1] * site.direction[1] + spawn[2] * site.direction[2];
   const distance = Math.acos(dot) * world.radius;
-  assert.ok(distance >= 55 && distance <= 150, `distance ${distance}`);
+  assert.ok(distance >= 35 && distance <= 120, `distance ${distance}`);
   const centre = world.column(site.direction);
   assert.equal(centre.natural.height, site.height, 'flattened');
   assert.equal(centre.natural.water, false);

@@ -41,6 +41,9 @@ export class Hud {
       hurt: root.querySelector('#hurt'),
       daynight: root.querySelector('#daynight'),
       jump: root.querySelector('#jump'),
+      compass: root.querySelector('#compass'),
+      compassArrow: root.querySelector('#compass-arrow'),
+      compassText: root.querySelector('#compass-text'),
       menu: root.querySelector('#menu'),
       menuButton: root.querySelector('#menu-button'),
       menuConfirm: root.querySelector('#menu-confirm'),
@@ -121,6 +124,15 @@ export class Hud {
   closePicker() { this.el.picker.hidden = true; }
   togglePicker() { if (this.pickerOpen) this.closePicker(); else this.openPicker(); }
 
+  /** Arrow to a target: `bearing` is the angle from the camera's forward, distance in blocks. */
+  setCompass(label, bearing, distance) {
+    if (label === null) { this.el.compass.hidden = true; return; }
+    this.el.compass.hidden = false;
+    this.el.compassArrow.style.transform = `rotate(${-bearing - Math.PI / 2}rad)`;
+    const text = `${label} · ${Math.round(distance)} blocks`;
+    if (this.el.compassText.textContent !== text) this.el.compassText.textContent = text;
+  }
+
   showStart(resumed) {
     this.el.startTitle.textContent = resumed ? 'Welcome back!' : 'Algo World: Survival';
     this.el.play.textContent = resumed ? 'Continue ▶' : 'Play ▶';
@@ -170,7 +182,7 @@ export class Hud {
     const dayIcon = daylight > 0.6 ? '☀️' : daylight > 0.3 ? '🌅' : '🌙';
     if (this.el.daynight.textContent !== dayIcon) this.el.daynight.textContent = dayIcon;
     const jumpLabel = player.inWater ? 'SWIM ▲' : 'JUMP';
-    if (this.el.jump.textContent !== jumpLabel) this.el.jump.textContent = jumpLabel;
+    if (this.el.jump.firstChild.textContent !== jumpLabel) this.el.jump.firstChild.textContent = jumpLabel;
     const maxHearts = game.difficulty?.hearts ?? RULES.maxHealth;
     const hearts = Array.from({ length: maxHearts }, (_, i) => (v.health >= i + 1 ? '❤️' : v.health > i ? '🧡' : '🖤')).join('');
     if (this.menuOpen) this.difficultyButtons.forEach(b => b.classList.toggle('on', b.dataset.difficulty === game.life.difficulty));

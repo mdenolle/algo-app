@@ -11,14 +11,14 @@ export const VILLAGE_RADIUS = 16;      // plateau radius in blocks
 const HOUSE = 5, HALL = 7;             // footprints
 const HOUSES = [[-8, -8], [8, -8], [-8, 8], [8, 8]];
 
-/** Find the village site: a flat grassy spot 60–140 blocks from the spawn. */
+/** Find the village site: a flat grassy spot 40–110 blocks from the spawn. */
 export function findVillageSite(terrain, spawnDirection, radius) {
   const { east, north } = tangentBasis(spawnDirection);
   const R = radius;
   const point = [0, 0, 0];
   const at = (a, b) => normalize([spawnDirection[0] * R + east[0] * a + north[0] * b, spawnDirection[1] * R + east[1] * a + north[1] * b, spawnDirection[2] * R + east[2] * a + north[2] * b]);
   let best = null;
-  for (let ring = 60; ring <= 140 && !best; ring += 10) {
+  for (let ring = 40; ring <= 110 && !best; ring += 10) {
     for (let step = 0; step < 24 && !best; step += 1) {
       const angle = (step / 24) * Math.PI * 2;
       const d = at(Math.cos(angle) * ring, Math.sin(angle) * ring);

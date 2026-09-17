@@ -17,7 +17,7 @@ Android app.
 | Lava | Pockets at the very bottom of the world (layer 3 and below) and a placeable block. Standing on it: 2.5 hearts/s, and you keep burning 3 s after. Glows in the dark. | `rules.js`, `columns.js` (`oreAt`) |
 | Day and night | A day is 6 minutes (`DAY_LENGTH`): about 3½ of light, 2½ of night. The sun circles the planet; glowstone and lava shine at night. | `renderer.js` (`setTime`), `game.js` |
 | Animals | Sheep, pig, cow, chicken wander the grass (up to 8 nearby). Hit one (dig) 1–3 times and it drops meat (+30 hunger). | `mobs.js` |
-| Villages | One village per planet, 60–140 blocks from the spawn on flat grass: four plank houses with brick roofs and windows, a cobblestone Chief's hall with a glowstone roof, a cobblestone path. Its blocks can be dug like any other. | `village.js`, `terrain.js` |
+| Villages | One village per planet, 40–110 blocks from the spawn on flat grass; a compass arrow at the top of the screen points to it with the distance until you arrive: four plank houses with brick roofs and windows, a cobblestone Chief's hall with a glowstone roof, a cobblestone path. Its blocks can be dug like any other. | `village.js`, `terrain.js` |
 | Villagers and the Chief | Four villagers wander near the Chief; the Chief (big, glowing hat, 14 hp) stays by the hall. **Trap** a villager (wall it in on four sides, two blocks high; they cannot cut corners) and after about four seconds it is yours: it follows you and hits zombies for 1. Trap the Chief and the whole village follows you. Your own villagers cannot be hurt by you. | `mobs.js` (`isTrapped`) |
 | Sky zombies | At night, one zombie in five is a sky zombie: it flies 4 blocks up, over any wall, and dives at you within 7 blocks. 3 hp, drops glowstone. | `mobs.js` |
 | Difficulty | Menu: Normal / Hard / Nightmare. Zombies ×1 / 1.6 / 2.5, their damage ×1 / 1.5 / 2, hunger ×1 / 1.3 / 1.6, healing ×1 / 0.7 / 0.4, hearts 10 / 10 / 7. Saved with the life. | `rules.js` (`DIFFICULTY`) |
@@ -67,9 +67,9 @@ the pointer (on a zombie: hits it); **hold breaks** the block under the pointer 
 mining while held; right-click breaks too. Keyboard: `W A S D` / arrows walk, `Shift` run,
 `C` crawl, `Space` jump or swim up, drag to orbit, wheel to zoom, `E` (hold to mine) / `R`
 break / build at the crosshair, `1`–`9` pick, `B` block book and tools, `F` eat, Escape menu.
-Touch: left joystick walks, drag elsewhere orbits, pinch zooms, and the `DIG` (hold to
-mine) / `BUILD` / `EAT` / `CRAWL` / `JUMP` (`SWIM` in water) / `BLOCKS` buttons act on
-the crosshair.
+The `DIG` (hold to mine) / `BUILD` / `EAT` / `CRAWL` / `JUMP` (`SWIM` in water) / `BLOCKS`
+buttons are on screen on every device (with their keys on a laptop) and act on the
+crosshair. Touch: left joystick walks, drag elsewhere orbits, pinch zooms.
 
 URL parameters: `?seed=42` new planet, `?distance=4` fewer chunks (phones),
 `?size=768` bigger planet (columns per cube-face edge; radius = 2·size/π).

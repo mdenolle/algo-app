@@ -203,11 +203,10 @@ export class MobManager {
     const site = this.world.terrain.villageSite();
     if (!site) { this.villagePopulated = true; return; }
     const spots = villageSpots(site, this.world.radius);
-    if (spots.chief[0] * this.player.up.x + spots.chief[1] * this.player.up.y + spots.chief[2] * this.player.up.z < 0.95) return;   // wait until it is near
     this.villagePopulated = true;
     this.village = { site, chief: this.spawn('chief', spots.chief) };
     for (const d of spots.villagers) this.spawn('villager', d);
-    this.game.say('A village! Its Chief rules the villagers. Trap them to make them yours.', 4);
+    this.game.say('There is a village nearby: follow the arrow. Its Chief rules the villagers. Trap them to make them yours.', 5);
   }
 
   update(dt, daylight) {
