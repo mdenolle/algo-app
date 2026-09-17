@@ -310,8 +310,8 @@ export class MobManager {
   }
 
   /** The player hits a mob: damage, knockback, flee, and drops when it goes down. */
-  hit(mob) {
-    mob.hp -= 1;
+  hit(mob, damage = 1) {
+    mob.hp -= damage;
     mob.hitFlash = 0.25;
     if (mob.type.kind === 'animal') mob.flee = 4;
     const away = this.tmp.v.copy(mob.position).sub(this.player.position);

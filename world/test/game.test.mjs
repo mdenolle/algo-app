@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { BLOCKS, BLOCK_BY_KEY, DEFAULT_HOTBAR, HOTBAR_SIZE, freshLife, upgradeLife } from '../src/game.js';
 import { MATERIALS } from '../src/materials.js';
 
-test('every material except water is a block you can hold, plus apple and meat', () => {
-  assert.equal(BLOCKS.length, MATERIALS.length - 1 + 2);
+test('every material except water is a block you can hold, plus apple, meat and the eight tools', () => {
+  assert.equal(BLOCKS.length, MATERIALS.length - 1 + 2 + 8);
   assert.ok(BLOCK_BY_KEY.has('apple') && BLOCK_BY_KEY.has('meat') && BLOCK_BY_KEY.has('diamond') && BLOCK_BY_KEY.has('tnt') && BLOCK_BY_KEY.has('lava') && !BLOCK_BY_KEY.has('water'));
 });
 

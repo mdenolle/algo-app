@@ -131,10 +131,12 @@ export class Renderer {
   }
 
   /** Show the highlight box on one block (column-major matrix from blockMatrix), or hide it. */
-  setHighlight(matrix) {
+  setHighlight(matrix, progress = 0) {
     if (!matrix) { this.highlight.visible = false; return; }
     this.highlight.matrix.fromArray(matrix);
     this.highlight.visible = true;
+    // White outline, turning orange then red as the block cracks.
+    this.highlight.material.color.setRGB(1, 1 - progress * 0.7, 1 - progress);
   }
 
   setUnderwater(under) {

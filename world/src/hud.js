@@ -1,19 +1,20 @@
 // HUD: hearts, hunger, air, hotbar with preview, messages, start and game-over
 // overlays. Plain DOM; the game loop calls update() a few times a second.
 
-import { BLOCKS, BLOCK_BY_KEY, HOTBAR_SIZE, RULE_SUMMARY } from './game.js';
+import { BLOCKS, BLOCK_BY_KEY, HOTBAR_SIZE, RULE_SUMMARY, RECIPES, canCraft } from './game.js';
 import { RULES } from './rules.js';
 import { MATERIALS } from './materials.js';
 
 const hexOf = material => `#${MATERIALS[material].hex}`;
 
 function blockIcon(block, big = false) {
+  if (block.tool) return `<span class="item tool${big ? ' big' : ''}" style="--c:${block.hex}">${block.emoji}</span>`;
   if (block.food) return `<span class="item${big ? ' big' : ''}">${block.emoji}</span>`;
   return `<span class="brick${big ? ' big' : ''}${block.translucent ? ' glass' : ''}" style="--c:${block.hex}"></span>`;
 }
 
 export class Hud {
-  constructor(root, { onPlay, onRetry, onSelect, onAssign, onRestart, onNewPlanet, seed }) {
+  constructor(root, { onPlay, onRetry, onSelect, onAssign, onRestart, onNewPlanet, onMake, seed }) {
     this.el = {
       hearts: root.querySelector('#hearts'),
       hungerFill: root.querySelector('#hunger-fill'),
@@ -36,6 +37,7 @@ export class Hud {
       picker: root.querySelector('#picker'),
       pickerGrid: root.querySelector('#picker-grid'),
       pickerClose: root.querySelector('#picker-close'),
+      recipes: root.querySelector('#recipes'),
       hurt: root.querySelector('#hurt'),
       daynight: root.querySelector('#daynight'),
       jump: root.querySelector('#jump'),
@@ -60,8 +62,8 @@ export class Hud {
     this.hurtUntil = 0;
     this.touch = window.matchMedia('(pointer: coarse)').matches;
     const controls = this.touch
-      ? [['joystick', 'move'], ['drag', 'look around'], ['JUMP', 'jump; in water: swim up, hop out'], ['tap', 'build the block you picked there'], ['hold', 'break that block, or hit a zombie'], ['CRAWL', 'slow and safe at edges'], ['EAT', 'eat an apple or meat'], ['BLOCKS', 'the block book']]
-      : [['W A S D', 'move (or arrows)'], ['mouse', 'drag to look, wheel to zoom'], ['Space', 'jump; in water: swim up, hop out'], ['click', 'dig that block, or hit a zombie'], ['right-click', 'build the block you picked there'], ['C', 'crawl: slow and safe at edges'], ['1 – 9 · B', 'pick a block · block book'], ['F', 'eat an apple or meat']];
+      ? [['joystick', 'move'], ['drag', 'look around'], ['JUMP', 'jump; in water: swim up, hop out'], ['tap', 'build the block you picked there'], ['hold', 'break that block (keep holding to mine), or hit a zombie'], ['CRAWL', 'slow and safe at edges'], ['EAT', 'eat an apple or meat'], ['BLOCKS', 'blocks and tools']]
+      : [['W A S D', 'move (or arrows)'], ['mouse', 'drag to look, wheel to zoom'], ['Space', 'jump; in water: swim up, hop out'], ['click', 'build the block you picked there'], ['hold / right', 'break that block (keep holding to mine), or hit a zombie'], ['C', 'crawl: slow and safe at edges'], ['1 – 9 · B', 'pick a block · blocks and tools'], ['F', 'eat an apple or meat']];
     this.el.controls.innerHTML = controls.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
     this.tipsUntil = 0;
     this.el.startRules.innerHTML = RULE_SUMMARY.map(line => `<li>${line}</li>`).join('');
@@ -90,6 +92,15 @@ export class Hud {
       this.el.pickerGrid.append(button);
       this.pickerButtons.set(block.key, button);
     }
+    this.recipeButtons = RECIPES.map(recipe => {
+      const made = BLOCK_BY_KEY.get(recipe.makes);
+      const button = document.createElement('button');
+      button.className = 'recipe';
+      button.innerHTML = `${blockIcon(made)}<span class="recipe-text"><b>${recipe.count > 1 ? `${recipe.count} ${made.label}` : made.label}</b><small>${Object.entries(recipe.needs).map(([k, n]) => `${n} ${BLOCK_BY_KEY.get(k).label.toLowerCase()}`).join(' + ')}</small></span><span class="make">Make</span>`;
+      button.addEventListener('click', () => onMake(recipe));
+      this.el.recipes.append(button);
+      return button;
+    });
     this.el.pickerClose.addEventListener('click', () => this.closePicker());
     this.el.picker.addEventListener('click', e => { if (e.target === this.el.picker && performance.now() - this.pickerOpenedAt > 350) this.closePicker(); });
   }
@@ -120,7 +131,7 @@ export class Hud {
     this.el.gameover.hidden = true;
     this.showTips(this.touch
       ? 'Left joystick: walk  ·  drag: look around\nTap: build there  ·  hold: break  ·  JUMP: jump or swim'
-      : 'W A S D: walk  ·  drag the mouse: look around\nclick: dig  ·  right-click: build  ·  Space: jump or swim', 14);
+      : 'W A S D: walk  ·  drag the mouse: look around\nclick: build there  ·  hold: break  ·  Space: jump or swim', 14);
   }
 
   showTips(text, seconds) {
@@ -186,6 +197,7 @@ export class Hud {
       this.el.preview.innerHTML = `${blockIcon(slot, true)}<span class="label">${slot.label}${slot.food ? ' · eat with F' : ''}<small>tap to open the block book</small></span>`;
     }
     if (this.pickerOpen) {
+      this.recipeButtons.forEach((button, index) => button.classList.toggle('can', canCraft(RECIPES[index], game.inventory)));
       for (const [key, button] of this.pickerButtons) {
         const count = game.inventory[key] ?? 0;
         const countEl = button.querySelector('.count');

@@ -77,6 +77,7 @@ const hud = new Hud(document, {
   onRetry: () => { game.newLife(world.terrain.findSpawn()); mobs.clear(); game.started = true; cameraController.initialised = false; hud.hideOverlays(); persistence.save(config.seed, world, game, cameraController); },
   onSelect: index => game.select(index),
   onAssign: key => game.assign(key),
+  onMake: recipe => game.make(recipe),
   onRestart: () => { persistence.clear(config.seed); reloadWorld({ reset: 1 }); },
   onNewPlanet: () => {
     const seed = Math.floor(1000 + Math.random() * 9_000_000);
@@ -175,7 +176,7 @@ function frame(now) {
     renderer.camera.getWorldDirection(cameraForward);
     player.headPosition(head);
     target = findTarget(world, renderer.camera.position, cameraForward, renderer.camera.position.distanceTo(head), RULES.reach) ?? targetInFront(world, player);
-    renderer.setHighlight(target && target.k >= 0 ? highlightMatrix(world, target, highlight) : null);
+    renderer.setHighlight(target && target.k >= 0 ? highlightMatrix(world, target, highlight) : null, game.breakProgress);
     handleActions(snapshot.actions);
   } else {
     target = null;

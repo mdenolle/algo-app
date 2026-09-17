@@ -4,6 +4,7 @@
 
 import { MATERIAL, MATERIALS } from './materials.js';
 import { RULES, freshVitals, stepVitals, applyFallDamage, eat, hurt } from './rules.js';
+import { TOOLS, RECIPES, canCraft, craft, hitBlock, hitDamage } from './tools.js';
 import { say, hasClip } from './voice.js';
 
 /** Everything that can sit in a hotbar slot: every block material, plus food. */
@@ -11,23 +12,25 @@ export const BLOCKS = [
   ...MATERIALS.filter(m => m.key !== 'water').map(m => ({ key: m.key, label: m.name, material: m.id, hex: `#${m.hex}`, ore: Boolean(m.ore), translucent: Boolean(m.translucent) })),
   { key: 'apple', label: 'Apple', food: true, emoji: '🍎' },
   { key: 'meat', label: 'Meat', food: true, emoji: '🍖' },
+  ...Object.entries(TOOLS).map(([key, t]) => ({ key, ...t })),
 ];
+export { RECIPES, canCraft };
 export const BLOCK_BY_KEY = new Map(BLOCKS.map(block => [block.key, block]));
 export const HOTBAR_SIZE = 9;
 export const DAY_LENGTH = 360;   // seconds per day: about 3½ minutes of light, 2½ of night
-export const DEFAULT_HOTBAR = ['grass', 'dirt', 'stone', 'planks', 'glass', 'bricks', 'tnt', 'wood', 'apple'];
+export const DEFAULT_HOTBAR = ['woodPickaxe', 'woodSword', 'planks', 'dirt', 'stone', 'glass', 'bricks', 'tnt', 'apple'];
 
 const materialToKey = new Map(BLOCKS.filter(b => b.material !== undefined).map(b => [b.material, b.key]));
 
 export function freshLife() {
   const inventory = Object.fromEntries(BLOCKS.map(block => [block.key, 0]));
   // Builder's chest: enough to make a house, a bridge and a little mischief before you have dug anything.
-  Object.assign(inventory, { dirt: 10, wood: 6, planks: 16, log: 8, leaves: 8, glass: 12, bricks: 12, pink: 8, purple: 8, cyan: 8, magenta: 8, terracotta: 8, cactus: 6, pumpkin: 4, glowstone: 4, lava: 2, tnt: 3, apple: 2 });
+  Object.assign(inventory, { dirt: 10, wood: 6, planks: 16, log: 8, leaves: 8, glass: 12, bricks: 12, pink: 8, purple: 8, cyan: 8, magenta: 8, terracotta: 8, cactus: 6, pumpkin: 4, glowstone: 4, lava: 2, tnt: 3, apple: 2, woodPickaxe: 1, woodSword: 1 });
   return {
     vitals: freshVitals(),
     inventory,
     hotbar: [...DEFAULT_HOTBAR],
-    selected: 3,                    // planks: something you can build with right away
+    selected: 2,                    // planks: something you can build with right away
     status: { burning: 0, frozen: 0 },   // seconds left
     time: 54,                             // planet clock in seconds; DAY_LENGTH per day, starts in the morning
     stats: { dug: 0, built: 0, eaten: 0, applesFound: 0, oresFound: 0, explosions: 0, zombiesBeaten: 0, startedAt: Date.now(), survived: 0 },
@@ -59,6 +62,7 @@ export class Game {
     this.fuses = [];        // { column, until }
     this.shake = 0;         // seconds of camera shake left
     this.pickerOpen = false;
+    this.breaking = null;   // { key, k, damage, hardness, until }: the block being mined
   }
 
   get vitals() { return this.life.vitals; }
@@ -132,13 +136,29 @@ export class Game {
     this.shake = Math.max(0, this.shake - dt);
   }
 
+  /** One hit on a block. Soft blocks go at once; hard ones take several hits, faster with a better pickaxe. */
   dig(target) {
     if (!this.vitals.alive) return false;
     if (!target || target.k === undefined || target.k < 0) { this.say('Aim at a block close to you', 2); return false; }
     const column = target.dig;
-    if (column.resolved.material(target.k) === MATERIAL.tnt) return this.light(column, target.k);
+    const material = column.resolved.material(target.k);
+    if (material === MATERIAL.tnt) return this.light(column, target.k);
+    if (material === null) { this.say('Nothing to dig there', 1.2); return false; }
+    if (target.k < 2) { this.say('Bedrock: too deep to dig', 1.6); return false; }
+    const hit = hitBlock(material, this.life.hotbar[this.life.selected]);
+    if (!hit.allowed) { this.say(hit.needs ? `Too hard! ${MATERIALS[material].name} needs ${hit.needs}` : `${MATERIALS[material].name} cannot be broken`, 1.8); this.breaking = null; return false; }
+    const now = performance.now();
+    if (!this.breaking || this.breaking.key !== column.key || this.breaking.k !== target.k || this.breaking.until < now) this.breaking = { key: column.key, k: target.k, damage: 0, hardness: hit.hardness };
+    this.breaking.damage += hit.power;
+    this.breaking.until = now + 2500;
+    if (this.breaking.damage < this.breaking.hardness) {
+      const left = Math.ceil((this.breaking.hardness - this.breaking.damage) / hit.power);
+      this.say(`${'▮'.repeat(Math.min(8, this.breaking.damage))}${'▯'.repeat(Math.max(0, Math.min(8, this.breaking.hardness) - Math.min(8, this.breaking.damage)))}  ${left} more ${left === 1 ? 'hit' : 'hits'}`, 1.2);
+      return false;
+    }
+    this.breaking = null;
     const removed = this.world.digAt(column, target.k);
-    if (removed === null) { this.say(target.k < 2 ? 'Bedrock: too deep to dig' : 'Nothing to dig there', 1.6); return false; }
+    if (removed === null) return false;
     const key = materialToKey.get(removed);
     if (key) this.inventory[key] += 1;
     if (MATERIALS[removed].ore) { this.life.stats.oresFound += 1; this.say(`✨ ${MATERIALS[removed].name}!`, 1.6); }
@@ -147,10 +167,27 @@ export class Game {
     return true;
   }
 
+  /** How far along the current block is (0..1) for the highlight. */
+  get breakProgress() {
+    if (!this.breaking || this.breaking.until < performance.now()) return 0;
+    return Math.min(1, this.breaking.damage / this.breaking.hardness);
+  }
+
+  /** Make something from the block book. */
+  make(recipe) {
+    const next = craft(recipe, this.inventory);
+    if (!next) { this.say('Not enough to make that yet', 1.4); return false; }
+    this.life.inventory = next;
+    const made = BLOCK_BY_KEY.get(recipe.makes);
+    this.say(`Made ${recipe.count > 1 ? recipe.count + ' ' : 'a '}${made.label.toLowerCase()} ${made.emoji ?? ''}`, 2);
+    return true;
+  }
+
   build(target) {
     if (!this.vitals.alive) return false;
     const slot = this.selectedSlot;
     if (slot.food) return this.eatSelected();
+    if (slot.tool) { this.say(`That is a ${slot.label.toLowerCase()}. Pick a block (1–9) to build`, 1.8); return false; }
     if (!target || !target.place || target.placeK === null) { this.say('Aim at the ground, or at the side of a block, to build there', 2); return false; }
     if (this.inventory[slot.key] <= 0) { this.say(`No ${slot.label.toLowerCase()} left. Dig some, or pick another block (1–9)`, 2.4); return false; }
     const column = target.place, k = target.placeK;
@@ -225,9 +262,9 @@ export class Game {
   /** Time of day: phase in [0,1) and whether it is night where the player stands is decided by the renderer. */
   get dayPhase() { return ((this.life.time ?? 54) / DAY_LENGTH) % 1; }
 
-  /** The player hits a mob with dig. */
+  /** The player hits a mob: bare hands do 1, swords more. */
   hitMob(mobs, mob) {
-    const result = mobs.hit(mob);
+    const result = mobs.hit(mob, hitDamage(this.life.hotbar[this.life.selected]));
     if (result.defeated) {
       if (result.drop) { this.inventory[result.drop] = (this.inventory[result.drop] ?? 0) + 1; }
       if (mob.type.kind === 'zombie') this.life.stats.zombiesBeaten += 1;
@@ -268,8 +305,9 @@ export const RULE_SUMMARY = [
   'Falling more than four blocks hurts; a big fall is fatal. Lava burns. TNT hurts.',
   'At night the zombies come: ice, fire, water, electric, and the Everything Zombie. Hit them (dig) four times. Animals drop meat.',
   'CRAWL (C) makes you slow but you cannot fall off an edge.',
-  'On a phone: tap a spot to BUILD there, hold your finger on a block to BREAK it (or use the buttons). Laptop: right-click builds, click breaks.',
-  'Build anywhere: on the ground, sideways onto a wall, even in the air. Pick blocks with 1–9 or the block book (B).',
+  'Click or tap a spot to BUILD there. Hold the button or your finger on a block to BREAK it (or use DIG / BUILD).',
+  'Hard blocks take more hits. Stone needs a pickaxe; ores need a stone one; diamond an iron one; obsidian a diamond one. Make tools in the block book (B).',
+  'Swords hit zombies harder. You start with a wooden pickaxe and a wooden sword.',
   'Ores hide deep in the stone: coal, iron, gold, redstone, lapis, emerald, diamond, obsidian. Dig down to find them.',
 ];
 

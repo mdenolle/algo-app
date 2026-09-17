@@ -50,3 +50,19 @@ export const MATERIAL_RGB = MATERIALS.map(m => {
 
 export const isTranslucent = id => Boolean(MATERIALS[id]?.translucent);
 export const isGlowing = id => Boolean(MATERIALS[id]?.glow);
+
+// How hard a block is: hit points to break it, and the pickaxe tier it needs
+// (0 hands, 1 wood, 2 stone, 3 iron, 4 diamond). Hands do 1 point per hit.
+const H = (hardness, tier = 0) => ({ hardness, tier });
+export const HARDNESS = {
+  grass: H(1), dirt: H(1), sand: H(1), snow: H(1), leaves: H(1), pumpkin: H(1), cactus: H(1), tnt: H(1), glass: H(1), glowstone: H(1),
+  ice: H(2), wood: H(2), log: H(2), planks: H(2), pink: H(2), purple: H(2), cyan: H(2), magenta: H(2),
+  terracotta: H(3), bricks: H(3),
+  stone: H(3, 1), darkstone: H(3, 1), coal: H(3, 1),
+  iron: H(4, 2), gold: H(4, 2), lapis: H(4, 2), redstone: H(4, 2), emerald: H(4, 2),
+  diamond: H(5, 3),
+  obsidian: H(8, 4),
+  lava: H(Infinity, 99), water: H(Infinity, 99),
+};
+export const hardnessOf = id => HARDNESS[MATERIALS[id]?.key] ?? H(2);
+export const TIER_NAMES = ['your hands', 'a wooden pickaxe', 'a stone pickaxe', 'an iron pickaxe', 'a diamond pickaxe'];
