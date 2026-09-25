@@ -92,7 +92,8 @@ export class Hud {
     for (const block of BLOCKS) {
       const button = document.createElement('button');
       button.className = 'pick';
-      button.innerHTML = `${blockIcon(block)}<span class="pick-label">${block.label}</span><b class="count">0</b>`;
+      button.innerHTML = `${blockIcon(block)}<span class="pick-label">${block.label}</span>${block.piece ? `<span class="pick-part">${block.piece.partNum}</span>` : ''}<b class="count">0</b>`;
+      if (block.piece) button.title = `${block.piece.colorName} ${block.piece.partName} · part ${block.piece.partNum} · LEGO element ${block.piece.elementId}`;
       button.addEventListener('click', () => { onAssign(block.key); this.closePicker(); });
       this.el.pickerGrid.append(button);
       this.pickerButtons.set(block.key, button);
@@ -212,7 +213,7 @@ export class Hud {
       this.lastSelected = game.life.selected;
       this.slots.forEach((button, index) => button.classList.toggle('selected', index === this.lastSelected));
       const slot = game.selectedSlot;
-      this.el.preview.innerHTML = `${blockIcon(slot, true)}<span class="label">${slot.label}${slot.food ? ' · eat with F' : ''}<small>tap to open the block book</small></span>`;
+      this.el.preview.innerHTML = `${blockIcon(slot, true)}<span class="label">${slot.label}${slot.food ? ' · eat with F' : ''}<small>${slot.piece ? `${slot.piece.colorName} ${slot.piece.partName} · ${slot.piece.partNum}` : 'tap to open the block book'}</small></span>`;
     }
     if (this.pickerOpen) {
       this.recipeButtons.forEach((button, index) => button.classList.toggle('can', canCraft(RECIPES[index], game.inventory)));

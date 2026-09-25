@@ -6,6 +6,7 @@
   <title>Algo World</title>
   <link rel="icon" href="../icon.svg">
   <style>
+    *, *::before, *::after { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; overflow: hidden; background: #8fd0ff; font-family: 'Nunito', system-ui, sans-serif; color: #14233a; }
     #world { display: block; width: 100vw; height: 100vh; touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
     button { font-family: inherit; }
@@ -74,6 +75,7 @@
     .pick.empty { opacity: .55; }
     .pick .pick-label { font-size: 10px; font-weight: 800; color: #14233a; text-align: center; line-height: 1.1; }
     .pick .count { position: absolute; right: 5px; top: 3px; font-size: 11px; color: #0754a6; }
+    .pick .pick-part { font-size: 9px; font-weight: 800; color: #65758b; }
     #picker-close { margin-top: 12px; width: 100%; padding: 10px; border: 0; border-radius: 12px; background: #ffd524; font-weight: 900; font-size: 15px; box-shadow: 0 4px 0 #d9ad20; cursor: pointer; }
     #help { position: fixed; bottom: 12px; right: 12px; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,.7); font-size: 11px; font-weight: 700; pointer-events: none; text-align: right; line-height: 1.5; }
     #joystick { position: fixed; left: 24px; bottom: 28px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.45); border: 3px solid rgba(255,255,255,.9); box-shadow: 0 6px 18px rgba(0,0,0,.25); touch-action: none; display: none; }
@@ -135,10 +137,14 @@
     }
     /* Short screens (a phone held sideways, small laptop windows): vitals at the top, no help box. */
     @media (max-height: 520px) { #vitals { top: 8px; bottom: auto; } #hearts { font-size: 13px; } .bar { width: 120px; height: 8px; } #help, #hud { display: none; } #preview { bottom: 62px; padding: 4px 10px 6px; } .brick.big { width: 36px; height: 28px; } .item.big { font-size: 30px; } #tips { top: 30%; font-size: 13px; } #clock { top: 8px; right: 10px; } #title { display: none; } }
-    .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,119,232,.92); color: white; padding: 20px; }
+    .overlay { position: fixed; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; background: rgba(8,119,232,.92); color: white; padding: 16px; overflow: hidden; }
     .overlay[hidden] { display: none; }
-    .card { max-width: 440px; width: 100%; background: white; color: #14233a; border-radius: 22px; padding: 22px 24px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
-    .card h1 { margin: 0 0 6px; font-size: 26px; color: #0754a6; } .card h2 { margin: 0 0 8px; font-size: 22px; color: #a52626; }
+    /* The card never grows past the screen: its middle scrolls, the button stays in view. */
+    .card { max-width: 440px; width: 100%; max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: white; color: #14233a; border-radius: 22px; padding: 18px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    .card .scroll-body { overflow-y: auto; min-height: 0; margin: 0 -4px; padding: 0 4px; }
+    .card > button, .card > .difficulty, .card > .confirm { flex: 0 0 auto; }
+    .card h1 { margin: 0 0 6px; font-size: 24px; color: #0754a6; } .card h2 { margin: 0 0 8px; font-size: 22px; color: #a52626; }
+    @media (max-height: 740px) { .card h1 { font-size: 20px; } .card ul { font-size: 12px; line-height: 1.4; margin: 6px 0 10px; } .controls { font-size: 12px; gap: 4px 10px; } .card button { padding: 11px; font-size: 16px; } }
     .card ul { padding-left: 20px; margin: 10px 0 16px; line-height: 1.5; font-weight: 700; font-size: 14px; }
     .card table { width: 100%; border-collapse: collapse; margin: 6px 0 16px; font-weight: 700; } .card td { padding: 5px 0; border-bottom: 1px solid #e3f3ff; } .card td:last-child { text-align: right; }
     .card button { width: 100%; padding: 14px; border: 0; border-radius: 14px; background: #ffd524; color: #3a3a27; font-size: 18px; font-weight: 900; box-shadow: 0 5px 0 #d9ad20; cursor: pointer; }
@@ -172,18 +178,20 @@
   <div id="hurt" hidden></div>
   <span id="daynight">☀️</span>
   <div id="compass" hidden><span id="compass-arrow">➤</span><span id="compass-text"></span></div>
-  <div id="picker" hidden><div class="book"><h2>Block book</h2><p>Tap a block or tool to put it in the selected hotbar slot. Ores come from deep in the stone.</p><div class="scroll"><div id="picker-grid"></div><h3>Make tools</h3><div id="recipes"></div></div><button id="picker-close">Close</button></div></div>
+  <div id="picker" hidden><div class="book"><h2>Block book</h2><p>Every block is a real LEGO piece: the number under each one is its part number, in its official colour. Tap a block or tool to put it in the selected hotbar slot; ores come from deep in the stone.</p><div class="scroll"><div id="picker-grid"></div><h3>Make tools</h3><div id="recipes"></div></div><button id="picker-close">Close</button></div></div>
   <button id="menu-button">☰ MENU</button>
-  <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><div class="controls" id="controls"></div><ul id="start-rules"></ul><button id="play">Play ▶</button><button class="secondary" data-menu="open">Start over or new planet…</button></div></div>
-  <div id="gameover" class="overlay" hidden><div class="card"><h2>Game over</h2><p id="cause"></p><table id="game-stats"></table><button id="retry">Try again on this planet ↻</button><button class="secondary" data-menu="open">Start over or new planet…</button></div></div>
+  <div id="start" class="overlay" hidden><div class="card"><h1 id="start-title">Algo World: Survival</h1><div class="scroll-body"><div class="controls" id="controls"></div><ul id="start-rules"></ul></div><button id="play">Play ▶</button><button class="secondary" data-menu="open">Start over or new planet…</button></div></div>
+  <div id="gameover" class="overlay" hidden><div class="card"><h2>Game over</h2><div class="scroll-body"><p id="cause"></p><table id="game-stats"></table></div><button id="retry">Try again on this planet ↻</button><button class="secondary" data-menu="open">Start over or new planet…</button></div></div>
   <div id="menu" class="overlay" hidden><div class="card"><h1>Menu</h1>
     <button id="menu-continue">Continue ▶</button>
+    <div class="scroll-body">
     <button class="secondary" id="menu-help">How to play</button>
     <div class="difficulty"><span>Difficulty</span><button data-difficulty="normal">Normal</button><button data-difficulty="hard">Hard</button><button data-difficulty="nightmare">Nightmare</button></div>
     <button class="secondary" id="menu-new">🌍 New planet (a brand-new world)</button>
     <button class="danger" id="menu-restart">Restart this planet from scratch</button>
     <div class="confirm" id="menu-confirm">Really? Everything you built on this planet and your life will be erased.<br><button class="danger" id="menu-restart-yes">Yes, erase it all</button> <button class="secondary" id="menu-restart-no">No, keep it</button></div>
     <p style="margin:12px 0 0;font-size:12px;color:#65758b;font-weight:700">Planet seed: <b id="menu-seed"></b>. New planets are remembered; add <code>?seed=123</code> to the address to visit a specific one.</p>
+    </div>
   </div></div>
   <div id="loading"><div>Building your planet…<small>generating the ground under your feet</small></div></div>
   <script src="../voice/clips.js"></script>

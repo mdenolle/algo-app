@@ -27,6 +27,14 @@ The build fails loudly if any of this is not true.
 | `catalog.test.mjs` | Invariants: unique parts, every part has a verified color, generated copies are in sync, attribution present. |
 | `cache/` | Downloaded `.csv.gz` dumps (git-ignored, about 3 MB). |
 
+## Algo World's blocks
+
+`world-pieces.mjs` (`npm run world:pieces`, and part of `catalog:build`) maps every
+block type in Algo World to a real part + colour from this catalog and writes
+`world/src/pieces.generated.js`. It fails if a block's colour is missing from the
+catalog or if no part exists in it, so the world can never show a piece LEGO did
+not make.
+
 ## Refresh or extend
 
 ```sh

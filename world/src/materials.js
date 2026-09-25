@@ -7,7 +7,7 @@ export const MATERIALS = [
   { id: 1, key: 'dirt', name: 'Dirt', lego: { id: 70, name: 'Reddish Brown' }, hex: '582A12' },
   { id: 2, key: 'stone', name: 'Stone', lego: { id: 71, name: 'Light Bluish Gray' }, hex: 'A0A5A9' },
   { id: 3, key: 'sand', name: 'Sand', lego: { id: 19, name: 'Tan' }, hex: 'E4CD9E' },
-  { id: 4, key: 'snow', name: 'Snow', lego: { id: 15, name: 'White' }, hex: 'F4F4F4' },
+  { id: 4, key: 'snow', name: 'Snow', lego: { id: 15, name: 'White' }, hex: 'FFFFFF' },
   { id: 5, key: 'ice', name: 'Ice', lego: { id: 212, name: 'Bright Light Blue' }, hex: '9FC3E9' },
   { id: 6, key: 'water', name: 'Water', lego: { id: 321, name: 'Dark Azure' }, hex: '078BC9' },
   { id: 7, key: 'wood', name: 'Wood', lego: { id: 84, name: 'Medium Nougat' }, hex: 'AA7D55' },

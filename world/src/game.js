@@ -3,18 +3,26 @@
 // rules.js; this wires them to the world, the player and the renderer.
 
 import { MATERIAL, MATERIALS } from './materials.js';
+import { PIECE_BY_MATERIAL } from './pieces.generated.js';
 import { RULES, DIFFICULTY, freshVitals, stepVitals, applyFallDamage, eat, hurt } from './rules.js';
 import { TOOLS, RECIPES, canCraft, craft, hitBlock, hitDamage } from './tools.js';
 import { say, hasClip } from './voice.js';
 
 /** Everything that can sit in a hotbar slot: every block material, plus food. */
 export const BLOCKS = [
-  ...MATERIALS.filter(m => m.key !== 'water').map(m => ({ key: m.key, label: m.name, material: m.id, hex: `#${m.hex}`, ore: Boolean(m.ore), translucent: Boolean(m.translucent) })),
+  ...MATERIALS.filter(m => m.key !== 'water').map(m => ({ key: m.key, label: m.name, material: m.id, hex: `#${m.hex}`, ore: Boolean(m.ore), translucent: Boolean(m.translucent), piece: PIECE_BY_MATERIAL[m.id] })),
   { key: 'apple', label: 'Apple', food: true, emoji: '🍎' },
   { key: 'meat', label: 'Meat', food: true, emoji: '🍖' },
   ...Object.entries(TOOLS).map(([key, t]) => ({ key, ...t })),
 ];
-export { RECIPES, canCraft };
+export { RECIPES, canCraft, PIECE_BY_MATERIAL };
+
+/** "Green Brick 2 x 2 · part 3003 · element 300328" for a block material. */
+export function pieceLabel(material) {
+  const piece = PIECE_BY_MATERIAL[material];
+  if (!piece) return null;
+  return `${piece.colorName} ${piece.partName} · part ${piece.partNum} · element ${piece.elementId}`;
+}
 export const BLOCK_BY_KEY = new Map(BLOCKS.map(block => [block.key, block]));
 export const HOTBAR_SIZE = 9;
 export const DAY_LENGTH = 360;   // seconds per day: about 3½ minutes of light, 2½ of night
@@ -171,7 +179,7 @@ export class Game {
     if (removed === null) return false;
     const key = materialToKey.get(removed);
     if (key) this.inventory[key] += 1;
-    if (MATERIALS[removed].ore) { this.life.stats.oresFound += 1; this.say(`✨ ${MATERIALS[removed].name}!`, 1.6); }
+    if (MATERIALS[removed].ore) { this.life.stats.oresFound += 1; const piece = PIECE_BY_MATERIAL[removed]; this.say(`✨ ${MATERIALS[removed].name}! (${piece.colorName} ${piece.partName}, part ${piece.partNum})`, 2.2); }
     this.life.stats.dug += 1;
     this.chunks.rebuild(this.world.chunksTouching(column));
     return true;

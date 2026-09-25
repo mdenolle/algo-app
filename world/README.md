@@ -32,10 +32,21 @@ Android app.
 
 All numbers live in `RULES` in `rules.js`.
 
-## Blocks
+## Blocks: real LEGO pieces
 
-Every block is a LEGO color from Rebrickable's table (`materials.js`); LEGO makes
-official Minecraft sets, so the mix is deliberate.
+Every block in the world is an actual LEGO piece. `catalog/world-pieces.mjs`
+(`npm run world:pieces`) reads the verified catalog and gives each block type a
+part number, the official part name, the official colour and the **element id**
+that proves LEGO produced that part in that colour; it fails the build if any
+block asks for a piece LEGO never made. Blocks are one 2 x 2 brick each, so 31 of
+the 32 are part **3003 (Brick 2 x 2)**; Iron ore is **3002 (Brick 2 x 3)** in Flat
+Silver, the closest real brick, because 3003 was never made in that colour. The
+part number is printed on every card in the block book, and the selected block's
+piece is named under the hotbar preview.
+
+Blocks are drawn with four studs at real LEGO measurements (stud pitch 8 mm,
+diameter 4.8 mm, height 1.8 mm on a 16 mm brick), so a block reads as the 2 x 2
+brick it is. Output: `world/src/pieces.generated.js`.
 
 | Terrain | Building | Ores (mined) | Special |
 |---|---|---|---|

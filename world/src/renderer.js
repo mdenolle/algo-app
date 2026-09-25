@@ -7,14 +7,27 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const SKY = 0x8fd0ff;
 
-/** A 1×1×1 block that reads as a LEGO brick: sharp box, optional centred stud. */
+/**
+ * One world block is a LEGO 2 x 2 brick (part 3003), so it carries four studs.
+ * Real LEGO measurements: stud pitch 8 mm, stud diameter 4.8 mm, stud height
+ * 1.8 mm. A block is 2 studs wide = 16 mm, so in block units the studs are
+ * 0.3 across, 0.1125 tall, at ±0.25 from the centre.
+ */
+export const STUD_PITCH = 0.5, STUD_DIAMETER = 0.3, STUD_HEIGHT = 0.1125;
+
 export function createBrickGeometry({ studded }) {
   const box = new THREE.BoxGeometry(1, 1, 1);
   if (!studded) return box;
-  const stud = new THREE.CylinderGeometry(0.245, 0.245, 0.18, 14, 1, false);
-  stud.translate(0, 0.5 + 0.09, 0);
-  const merged = mergeGeometries([box, stud], false);
-  box.dispose(); stud.dispose();
+  const parts = [box];
+  for (const x of [-STUD_PITCH / 2, STUD_PITCH / 2]) {
+    for (const z of [-STUD_PITCH / 2, STUD_PITCH / 2]) {
+      const stud = new THREE.CylinderGeometry(STUD_DIAMETER / 2, STUD_DIAMETER / 2, STUD_HEIGHT, 12, 1, false);
+      stud.translate(x, 0.5 + STUD_HEIGHT / 2, z);
+      parts.push(stud);
+    }
+  }
+  const merged = mergeGeometries(parts, false);
+  parts.forEach(g => g.dispose());
   return merged;
 }
 
