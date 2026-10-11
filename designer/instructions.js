@@ -20,7 +20,8 @@ export function partsList(model) {
   const rows = new Map();
   for (const piece of model.pieces) {
     const key = `${piece.partNum}:${piece.colorId}`;
-    const row = rows.get(key) ?? { partNum: piece.partNum, colorId: piece.colorId, count: 0, part: PART_BY_NUM[piece.partNum], color: COLOR_BY_ID[piece.colorId], name: pieceName(piece.partNum, piece.colorId) };
+    const part = PART_BY_NUM[piece.partNum];
+    const row = rows.get(key) ?? { partNum: piece.partNum, colorId: piece.colorId, count: 0, part, color: COLOR_BY_ID[piece.colorId], elementId: part.elements?.[String(piece.colorId)] ?? null, name: pieceName(piece.partNum, piece.colorId) };
     row.count += 1;
     rows.set(key, row);
   }
@@ -29,27 +30,36 @@ export function partsList(model) {
 
 const PLACE_WORDS = ['Put', 'Add', 'Place', 'Snap on', 'Press on'];
 
-/** The build in numbered steps: which pieces go on, and a sentence to read out. */
-export function steps(model) {
-  const byStep = new Map();
+/**
+ * The build in numbered steps, the way an instruction book does it: a few pieces
+ * at a time, in the order they go on, and a new step whenever the model gets a
+ * layer taller. `maxPieces` is how many pieces one step may ask for.
+ */
+export function steps(model, { maxPieces = 2 } = {}) {
+  const groups = [];
+  let current = null;
   for (const piece of model.pieces) {
-    const list = byStep.get(piece.step) ?? [];
-    list.push(piece);
-    byStep.set(piece.step, list);
+    const sameLayer = current && current.y === piece.y && current.section === piece.step;
+    if (!current || !sameLayer || current.pieces.length >= maxPieces) {
+      current = { y: piece.y, section: piece.step, pieces: [] };
+      groups.push(current);
+    }
+    current.pieces.push(piece);
   }
-  return [...byStep.entries()].sort((a, b) => a[0] - b[0]).map(([number, pieces], index) => {
+  return groups.map((group, index) => {
     const counts = new Map();
-    for (const piece of pieces) {
+    for (const piece of group.pieces) {
       const key = `${piece.partNum}:${piece.colorId}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
     const parts = [...counts.entries()].map(([key, count]) => {
       const [partNum, colorId] = key.split(':');
-      return { partNum, colorId: Number(colorId), count, name: pieceName(partNum, Number(colorId)) };
+      return { partNum, colorId: Number(colorId), count, elementId: PART_BY_NUM[partNum].elements?.[colorId] ?? null, name: pieceName(partNum, Number(colorId)) };
     });
     const words = parts.map(p => `${p.count} ${p.name}${p.count > 1 ? 's' : ''}`).join(' and ');
     const verb = PLACE_WORDS[index % PLACE_WORDS.length];
-    return { number, index: index + 1, pieces, parts, text: `${verb} ${words}.` };
+    const where = group.y === 0 ? ' on the baseplate' : '';
+    return { number: index + 1, index: index + 1, pieces: group.pieces, parts, text: `${verb} ${words}${where}.` };
   });
 }
 

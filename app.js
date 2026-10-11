@@ -162,7 +162,7 @@ function runScan() {
     clearInterval(interval);
     overlay.hidden = true;
     showScreen('ideas');
-    say(`I found ${demoInventory.reduce((sum, piece) => sum + piece.count, 0)} pieces. Here are three awesome ideas!`);
+    say('Here are three awesome ideas!', 'ideas-demo');
   }, 2100);
 }
 
@@ -235,7 +235,6 @@ function renderBuildStep() {
   const build = builds[currentBuild];
   const step = build.steps[currentStep];
   document.querySelector('#current-step').textContent = currentStep + 1;
-  document.querySelector('#remaining-count').textContent = `${Math.max(0, build.pieces - (currentStep * Math.ceil(build.pieces / build.steps.length)))} left`;
   document.querySelector('#step-instruction').textContent = step.text;
   document.querySelector('#hint-text').hidden = true;
   document.querySelector('#hint-text').textContent = `Algo says: “${step.hint}”`;
@@ -304,22 +303,16 @@ function pieceButton(piece, className) {
   button.className = `${className} ${piece.color}`;
   button.dataset.part = piece.partNum;
   button.dataset.color = piece.colorId;
-  button.title = `${piece.count} × ${piece.officialName} · part ${piece.partNum}`;
-  button.setAttribute('aria-label', `${piece.count} ${piece.name}, part ${piece.partNum}`);
+  button.title = `${piece.officialName} · part ${piece.partNum}`;
+  button.setAttribute('aria-label', `${piece.name}, part ${piece.partNum}`);
   const mini = document.createElement('span');
   mini.className = `mini-brick shape-${piece.shape}`;
   mini.style.color = piece.hex;
-  const count = document.createElement('b');
-  count.textContent = piece.count;
-  button.append(mini, count);
+  button.append(mini);
   return button;
 }
 
 function renderInventory() {
-  const strip = document.querySelector('.inventory-strip');
-  strip.innerHTML = '';
-  demoInventory.forEach(piece => strip.append(pieceButton(piece, 'inventory-pill')));
-
   const palette = document.querySelector('#creator-palette');
   palette.innerHTML = '';
   demoInventory.forEach(piece => {
@@ -346,14 +339,12 @@ function placePiece(cell) {
     cell.append(piece);
     placedCount += 1;
   }
-  document.querySelector('#creator-left').textContent = 34 - placedCount;
   document.querySelector('#finish-creation').disabled = placedCount < 3;
 }
 
 document.querySelector('#clear-creation').addEventListener('click', () => {
   board.querySelectorAll('.board-cell').forEach(cell => cell.innerHTML = '');
   placedCount = 0;
-  document.querySelector('#creator-left').textContent = '34';
   document.querySelector('#finish-creation').disabled = true;
 });
 
@@ -395,7 +386,7 @@ function bookPages() {
   const finalModel = build.steps.at(-1).model;
   const pages = [
     `<div class="page-overline">MY BUILD BOOK</div><h3>${name}</h3><div class="page-art">${modelHTML(finalModel)}</div><p class="page-copy">Designed and built with Algo</p>`,
-    `<div class="page-overline">BEFORE YOU BUILD</div><h3>Shapes and colors you’ll need</h3><div class="book-inventory">${demoInventory.map(piece => `<span class="inventory-pill ${piece.color}" title="${escapeHTML(piece.officialName)} · part ${piece.partNum}"><span class="mini-brick shape-${piece.shape}" style="color:${piece.hex}"></span><b>${piece.count}</b></span>`).join('')}</div><p class="page-copy">Match the exact shape, size, and color before each step.</p><p class="page-copy part-list">${demoInventory.map(piece => `${piece.count} × ${piece.partNum}`).join(' · ')}</p>`,
+    `<div class="page-overline">BEFORE YOU BUILD</div><h3>This is what you could build</h3><p class="page-copy">Match the exact shape, size, and color before each step.</p>`,
     ...build.steps.map((step, index) => `<span class="book-step-number">${index + 1}</span><div class="page-overline">BUILD STEP ${index + 1}</div><h3>${escapeHTML(step.text)}</h3><div class="page-art">${modelHTML(step.model)}</div><p class="page-copy">Algo’s hint: ${escapeHTML(step.hint)}</p>`),
     `<div class="page-overline">MAGNIFIQUE!</div><h3>You did it!</h3><div class="page-art">${modelHTML(finalModel)}</div><p class="page-copy">This creation was built by ${name}. Keep imagining, building, and having fun!</p>`
   ];

@@ -149,6 +149,7 @@ a.primary-button { display: inline-block; text-decoration: none; text-align: cen
 .joke-reveal { color: var(--green); }
 .joke-reveal span { display: block; color: var(--muted); font-size: 13px; }
 .demo-link { display: block; margin: 11px auto 0; }
+.could-build { font-weight: 900; font-size: 17px; color: var(--blue-dark); }
 .world-link { width: fit-content; text-decoration: none; text-align: center; }
 
 .section-heading { margin: 12px 4px 23px; text-align: center; }

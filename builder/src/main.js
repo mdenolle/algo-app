@@ -6,10 +6,32 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { openPile, demoInventory, Inventory } from '../../designer/inventory.js';
 import { DESIGNS, design } from '../../designer/designs.js';
-import { instructions, pieceImage } from '../../designer/instructions.js';
+import { instructions } from '../../designer/instructions.js';
 import { buildPiece, outline, PLATE } from './bricks3d.js';
+import { COLOR_BY_ID } from '../../designer/colors.generated.js';
 
 const params = new URLSearchParams(location.search);
+
+/**
+ * A picture of the real piece: the photo of that LEGO element first, then a
+ * rendered picture of the part, and if neither exists a drawn brick in the right
+ * colour — never a broken image.
+ */
+function pieceSwatch(colorId) {
+  const rgb = COLOR_BY_ID[colorId]?.rgb ?? 'C91A09';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><rect x="6" y="14" width="52" height="28" rx="3" fill="#${rgb}"/><rect x="6" y="34" width="52" height="8" rx="3" fill="rgba(0,0,0,.18)"/><ellipse cx="20" cy="14" rx="7" ry="5" fill="#${rgb}"/><ellipse cx="44" cy="14" rx="7" ry="5" fill="#${rgb}"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+function pieceImg(partNum, colorId, elementId, alt, className = '') {
+  const sources = [elementId ? `https://cdn.rebrickable.com/media/parts/elements/${elementId}.jpg` : null,
+                   `https://cdn.rebrickable.com/media/parts/ldraw/${colorId}/${partNum}.png`].filter(Boolean);
+  return `<img class="${className}" loading="lazy" alt="${alt}" title="${alt}" src="${sources[0]}" data-next="${sources.slice(1).join('|')}" data-fallback="${pieceSwatch(colorId)}" onerror="algoImageFailed(this)">`;
+}
+window.algoImageFailed = img => {
+  const next = (img.dataset.next || '').split('|').filter(Boolean);
+  if (next.length) { img.src = next.shift(); img.dataset.next = next.join('|'); }
+  else { img.src = img.dataset.fallback; img.onerror = null; }
+};
 const el = id => document.querySelector(id);
 
 const scene = new THREE.Scene();
@@ -97,8 +119,7 @@ function show(model) {
 
   el('#parts').innerHTML = info.parts.map(part => `
     <figure class="part">
-      <img loading="lazy" src="${pieceImage(part.partNum, part.colorId, part.element)}" alt="${part.name}"
-           onerror="this.src='https://cdn.rebrickable.com/media/parts/ldraw/${part.colorId}/${part.partNum}.png'; this.onerror=null;">
+      ${pieceImg(part.partNum, part.colorId, part.elementId, part.name)}
       <figcaption><b>${part.count} ×</b> ${part.name}<small>${part.part.name} · part ${part.partNum}</small></figcaption>
     </figure>`).join('');
 
@@ -106,7 +127,7 @@ function show(model) {
     <li data-step="${step.number}">
       <span class="num">${step.index}</span>
       <span class="what">${step.text}
-        <span class="thumbs">${step.parts.map(p => `<img loading="lazy" src="${pieceImage(p.partNum, p.colorId)}" alt="${p.name}" title="${p.name}">`).join('')}</span>
+        <span class="thumbs">${step.parts.map(p => pieceImg(p.partNum, p.colorId, p.elementId, p.name)).join('')}</span>
       </span>
     </li>`).join('');
   [...el('#steps').children].forEach(li => li.addEventListener('click', () => setStep(Number(li.dataset.step))));

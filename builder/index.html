@@ -22,6 +22,7 @@
     @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
     .card { background: white; border-radius: 20px; padding: 16px; box-shadow: 0 8px 24px rgba(21,62,103,.1); }
     h1 { margin: 0; font-size: 26px; color: #0754a6; }
+    .could-build { margin: 0 0 2px; font-size: 18px; font-weight: 900; color: #14233a; letter-spacing: .2px; }
     #subtitle { margin: 4px 0 2px; color: #65758b; font-weight: 700; }
     #facts { color: #65758b; font-weight: 700; font-size: 13px; }
     #stage-wrap { position: relative; height: min(58vh, 520px); margin-top: 12px; border-radius: 16px; overflow: hidden; background: #eef6ff; }
@@ -65,6 +66,7 @@
 
   <main>
     <section class="card">
+      <p class="could-build">This is what you could build.</p>
       <h1 id="title">…</h1>
       <p id="subtitle"></p>
       <div id="facts"></div>
@@ -80,9 +82,9 @@
 
     <aside class="card">
       <h2>Algo made this up</h2>
-      <p class="hint">Not from an instruction book: Algo invents the set, then lists the real LEGO pieces it needs. Find these in your box, or swap in the nearest piece you have.</p>
+      <p class="hint">Not from an instruction book, and not from your box: Algo invents the set, then lists the pieces it would take. Find them, or swap in the nearest piece you have.</p>
       <div id="designs"></div>
-      <h2>Pieces you need</h2>
+      <h2>Pieces it would take</h2>
       <div id="parts"></div>
       <h2 style="margin-top:14px">Build it</h2>
       <ol id="steps"></ol>

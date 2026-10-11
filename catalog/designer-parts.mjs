@@ -44,6 +44,7 @@ const parts = catalog.parts.map(part => {
     height: shape.height,                           // in plates
     studs: shape.kind === 'tile' || /No Studs/.test(part.name) ? 0 : Math.min(a, b) * Math.max(a, b),
     colors: part.colors,
+    elements: part.elements,              // colour id → LEGO element id, for piece photos
   };
 }).filter(Boolean);
 
