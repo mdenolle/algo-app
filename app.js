@@ -168,7 +168,7 @@ function runScan() {
 
 scanButton.addEventListener('click', runScan);
 document.querySelector('#scan-demo').addEventListener('click', runScan);
-document.querySelector('#demo-inventory').addEventListener('click', () => {
+document.querySelector('#demo-inventory')?.addEventListener('click', () => {
   showScreen('ideas');
   say('Here are three things we can build!', 'ideas-demo');
 });

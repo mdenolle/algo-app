@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Algo invents a LEGO set</title>
+  <link rel="icon" href="../icon.svg">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #f7fbff; color: #14233a; font-family: 'Nunito', system-ui, sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #0877e8; color: white; flex-wrap: wrap; }
+    header a { color: white; text-decoration: none; font-weight: 900; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+    header .logo { width: 30px; height: 22px; border-radius: 4px; background: #ffd524; position: relative; box-shadow: inset 0 -5px 0 rgba(0,0,0,.18); }
+    header .logo:before, header .logo:after { content: ''; position: absolute; top: -5px; width: 9px; height: 6px; border-radius: 50% 50% 1px 1px; background: #ffd524; }
+    header .logo:before { left: 4px; } header .logo:after { right: 4px; }
+    header .spacer { flex: 1; }
+    button { font-family: inherit; font-weight: 900; border: 0; border-radius: 12px; cursor: pointer; }
+    .primary { background: #ffd524; color: #3a3a27; padding: 10px 16px; font-size: 15px; box-shadow: 0 4px 0 #d9ad20; }
+    .ghost { background: rgba(255,255,255,.2); color: white; padding: 9px 14px; font-size: 14px; }
+    .ghost.off { opacity: .55; }
+    main { display: grid; grid-template-columns: 1fr 360px; gap: 16px; padding: 16px; max-width: 1200px; margin: 0 auto; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    .card { background: white; border-radius: 20px; padding: 16px; box-shadow: 0 8px 24px rgba(21,62,103,.1); }
+    h1 { margin: 0; font-size: 26px; color: #0754a6; }
+    #subtitle { margin: 4px 0 2px; color: #65758b; font-weight: 700; }
+    #facts { color: #65758b; font-weight: 700; font-size: 13px; }
+    #stage-wrap { position: relative; height: min(58vh, 520px); margin-top: 12px; border-radius: 16px; overflow: hidden; background: #eef6ff; }
+    #stage { width: 100%; height: 100%; display: block; touch-action: none; }
+    .stage-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .stage-bar #step-label { font-weight: 900; color: #0754a6; margin-right: auto; }
+    .stage-bar button { background: #e3f3ff; color: #0754a6; padding: 9px 14px; font-size: 14px; box-shadow: 0 3px 0 #bfe0ff; }
+    .stage-bar button:disabled { opacity: .45; box-shadow: none; }
+    .stage-bar #next { background: #ffd524; color: #3a3a27; box-shadow: 0 3px 0 #d9ad20; }
+    h2 { margin: 0 0 8px; font-size: 17px; color: #0754a6; }
+    .hint { margin: 0 0 10px; font-size: 13px; color: #65758b; font-weight: 700; }
+    #designs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    #designs button { background: #f0f7ff; color: #0754a6; border: 2px solid #dbeeff; padding: 7px 11px; font-size: 13px; }
+    #parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+    .part { margin: 0; padding: 6px; border: 2px solid #eef6ff; border-radius: 12px; text-align: center; }
+    .part img { width: 100%; height: 56px; object-fit: contain; }
+    .part figcaption { font-size: 11px; font-weight: 800; line-height: 1.25; }
+    .part small { display: block; font-size: 9px; color: #65758b; font-weight: 700; margin-top: 2px; }
+    #steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    #steps li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: #f7fbff; border: 2px solid transparent; cursor: pointer; }
+    #steps li.on { border-color: #ffd524; background: #fffdf2; }
+    #steps .num { flex: 0 0 26px; height: 26px; border-radius: 13px; background: #0877e8; color: white; display: grid; place-items: center; font-size: 13px; }
+    #steps .what { font-size: 13px; font-weight: 700; }
+    #steps .thumbs { display: flex; gap: 4px; margin-top: 4px; }
+    #steps .thumbs img { width: 34px; height: 26px; object-fit: contain; }
+    footer { padding: 0 16px 28px; text-align: center; color: #65758b; font-size: 12px; font-weight: 700; }
+    @media print { header, .stage-bar, #designs, footer, .hint { display: none; } main { grid-template-columns: 1fr; } }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <header>
+    <a href="../"><span class="logo"></span> ALGO</a>
+    <span class="spacer"></span>
+    <button class="ghost" id="spin">↻ Spin</button>
+    <button class="ghost" id="print">🖨 Print</button>
+    <button class="primary" id="surprise">✨ Surprise me</button>
+  </header>
+
+  <main>
+    <section class="card">
+      <h1 id="title">…</h1>
+      <p id="subtitle"></p>
+      <div id="facts"></div>
+      <div id="stage-wrap"><canvas id="stage"></canvas></div>
+      <div class="stage-bar">
+        <span id="step-label"></span>
+        <button id="prev">← Back</button>
+        <button id="all">Show it all</button>
+        <button id="next">Next step →</button>
+        <button id="again">↻ Another one like this</button>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2>Algo made this up</h2>
+      <p class="hint">Not from an instruction book: Algo invents the set, then lists the real LEGO pieces it needs. Find these in your box, or swap in the nearest piece you have.</p>
+      <div id="designs"></div>
+      <h2>Pieces you need</h2>
+      <div id="parts"></div>
+      <h2 style="margin-top:14px">Build it</h2>
+      <ol id="steps"></ol>
+    </aside>
+  </main>
+
+  <footer>Piece pictures and part numbers from Rebrickable. LEGO is a trademark of the LEGO Group, which does not sponsor or endorse this project.</footer>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

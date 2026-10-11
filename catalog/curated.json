@@ -35,6 +35,11 @@
       "id": "axle",
       "label": "Axle",
       "hint": "Long thin rod that wheels spin on."
+    },
+    {
+      "id": "tile",
+      "label": "Tile",
+      "hint": "Flat piece with a smooth top, no studs."
     }
   ],
   "colors": [
@@ -486,6 +491,31 @@
       "partNum": "3673",
       "family": "axle",
       "kidName": "smooth pin"
+    },
+    {
+      "partNum": "3070b",
+      "family": "tile",
+      "kidName": "1 \u00d7 1 tile"
+    },
+    {
+      "partNum": "3069b",
+      "family": "tile",
+      "kidName": "1 \u00d7 2 tile"
+    },
+    {
+      "partNum": "3068b",
+      "family": "tile",
+      "kidName": "2 \u00d7 2 tile"
+    },
+    {
+      "partNum": "63864",
+      "family": "tile",
+      "kidName": "1 \u00d7 3 tile"
+    },
+    {
+      "partNum": "6636",
+      "family": "tile",
+      "kidName": "1 \u00d7 6 tile"
     }
   ]
 }

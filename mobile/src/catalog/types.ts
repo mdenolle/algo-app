@@ -2,13 +2,43 @@
 // from Rebrickable's public data dumps. Edit catalog/curated.json, not this.
 
 /** Kid-facing visual shape. The UI knows how to draw exactly these. */
-export type PartFamily = 'brick' | 'short' | 'plate' | 'slope' | 'curve' | 'wheel' | 'axle';
+export type PartFamily = 'brick' | 'short' | 'plate' | 'slope' | 'curve' | 'wheel' | 'axle' | 'tile';
 
 /** Kid-facing color word. The first seven are the original Algo palette. */
 export type KidColor =
-  | 'blue' | 'red' | 'yellow' | 'green' | 'white' | 'black' | 'gray'
-  | 'darkgray' | 'orange' | 'lime' | 'tan' | 'brown' | 'darkblue' | 'darkgreen'
-  | 'darkred' | 'azure' | 'pink' | 'purple' | 'lightorange';
+  | 'blue'
+  | 'red'
+  | 'yellow'
+  | 'green'
+  | 'white'
+  | 'black'
+  | 'gray'
+  | 'darkgray'
+  | 'orange'
+  | 'lime'
+  | 'tan'
+  | 'brown'
+  | 'darkblue'
+  | 'darkgreen'
+  | 'darkred'
+  | 'azure'
+  | 'pink'
+  | 'purple'
+  | 'lightorange'
+  | 'brightblue'
+  | 'nougat'
+  | 'darktan'
+  | 'darkbrown'
+  | 'brightgreen'
+  | 'clear'
+  | 'silver'
+  | 'mediumazure'
+  | 'darkpurple'
+  | 'lightyellow'
+  | 'darkorange'
+  | 'turquoise'
+  | 'magenta'
+  | 'transorange';
 
 export type CatalogFamily = { id: PartFamily; label: string; hint: string };
 

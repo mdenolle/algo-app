@@ -28,10 +28,12 @@ jobs:
         run: |
           mkdir -p dist/node_modules/three/build dist/node_modules/three/examples/jsm/utils
           cp index.html app.js styles.css manifest.json icon.svg dist/
-          cp -r catalog voice world dist/
-          rm -rf dist/catalog/cache dist/world/test
+          cp -r catalog voice world designer builder dist/
+          rm -rf dist/catalog/cache dist/world/test dist/designer/test
           cp node_modules/three/build/three.module.js node_modules/three/build/three.core.js dist/node_modules/three/build/
+          mkdir -p dist/node_modules/three/examples/jsm/controls
           cp node_modules/three/examples/jsm/utils/BufferGeometryUtils.js dist/node_modules/three/examples/jsm/utils/
+          cp node_modules/three/examples/jsm/controls/OrbitControls.js dist/node_modules/three/examples/jsm/controls/
           touch dist/.nojekyll
           du -sh dist
       - uses: actions/configure-pages@v5

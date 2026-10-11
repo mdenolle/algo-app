@@ -3,13 +3,14 @@
   "private": true,
   "description": "Algo: web prototype, Expo mobile app, and the verified LEGO part catalog they share.",
   "scripts": {
-    "catalog:build": "node catalog/build-catalog.mjs && node catalog/world-pieces.mjs",
-    "catalog:build:offline": "node catalog/build-catalog.mjs --offline && node catalog/world-pieces.mjs",
-    "test": "node --test catalog/*.test.mjs world/test/*.test.mjs",
+    "catalog:build": "node catalog/build-catalog.mjs && node catalog/world-pieces.mjs && node catalog/designer-parts.mjs",
+    "catalog:build:offline": "node catalog/build-catalog.mjs --offline && node catalog/world-pieces.mjs && node catalog/designer-parts.mjs",
+    "test": "node --test catalog/*.test.mjs world/test/*.test.mjs designer/test/*.test.mjs",
     "web": "node serve.mjs",
     "world": "node serve.mjs",
     "voice": "node scripts/voice-clips.mjs",
-    "world:pieces": "node catalog/world-pieces.mjs"
+    "world:pieces": "node catalog/world-pieces.mjs",
+    "designer:parts": "node catalog/designer-parts.mjs"
   },
   "devDependencies": {
     "three": "^0.186.0"
